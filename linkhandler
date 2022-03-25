@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+source prmgbtrbl
+[[ $prvt == 1 ]] && exit
+
+# Feed script a url or file location.
+# If an image, it will view in feh,
+# if a video or gif, it will view in mpv
+# if a music file or pdf, it will download,
+# otherwise it opens link in browser.
+
+
+case "$1" in
+
+    # 'setsid -f' is used throughout the script to make sure bash is creating a new process
+    # freeing any other program that executes linkhandler from waiting for this script to finish
+    # it's specially useful when I use linkhandler in conjunction with newsboat
+    # for example opening a youtube video without setsid makes newsboat hang waiting for the video on mpv to end
+    # while with 'setsid -f' newsboat continues working like normal free from waiting time
+    # (newsboat(1) is an RSS/Atom feed reader for the terminal)
+    
+    *phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*|*fsf.org*)
+        # Sites that don't send the full article throught RSS
+        # rdrview is a little program that acts like firefox reader mode
+        # it cleans the page from all distractions and keeps only the article and their related images
+        # rdrview only converts the html page, it is then required to pass the cleaned page to a browser
+        setsid -f rdrview -B qutebrowser "$1" >/dev/null 2>&1 ;;
+    
+    *youtube.com/watch*|*odysee.com*|*youtube.com/playlist*|*youtu.be*| \
+    *ytb.trom.tf*|*hooktube.com*|*yewtu.be*|*videos*|*mkv|*webm|*mp4)
+        setsid -f mpv --quiet \
+            --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
+            "$1" >/dev/null 2>&1 ;;
+
+    *gif|*mp3|*flac|*opus|*mp3?source*)
+        setsid -f mpv --quiet "$1" >/dev/null 2>&1 ;;
+
+    *png|*jpg|*jpe|*jpeg)
+        curl -sL "$1" > "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" && feh \
+            --image-bg '#1A1C1E' --scale-down --start-at "/tmp/$(echo "$1" | \
+            sed "s/.*\///;s/%20/ /g")"  >/dev/null 2>&1 & ;;
+
+    *pdf|*cbz|*cbr)
+        curl -sL "$1" > "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" && \
+            zathura "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")"  >/dev/null 2>&1 & ;;
+
+    *nyaa.si*)
+        # nyaa.si is an anime torrent tracker
+        # tadd is an script that sends torrent links to transmission to be downloaded
+        setsid -f tadd "$1" ;;
+
+    *instagram.com*)
+        # Opens instagram links with my ungoogled-chromium logged session to avoid the site to nag about login
+        setsid -f chromium --class=surfium --user-data-dir=$HOME/.config/chromium-app \
+            --new-window --app="$1" >/dev/null 2>&1 ;;
+
+    *twitter.com*|*t.co*) 
+        # Forces t.co shortened url to be expanded
+        case "$1" in
+            *t.co*)
+                twtr_url="$(curl -sIL $1 | sed -n 's/location: *//p')" ;;
+            *)
+                twtr_url="$1" ;;
+        esac
+        # Avoids twitter age restriction by opening the link throught a nitter instance
+        # consequentially avoiding to be forced to login to be able to see twitter's restricted content
+        setsid -f qutebrowser "$(echo "$twtr_url" | sed \
+            -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/')" >/dev/null 2>&1 ;;
+    
+    *)
+        # Any other link is sent to be open by the web browser
+        setsid -f qutebrowser "$1" >/dev/null 2>&1
+        #setsid -f surf "$1" >/dev/null 2>&1
+esac

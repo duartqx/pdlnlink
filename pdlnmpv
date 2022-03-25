@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+choice=$(echo -e "mpv playlist\nmpv\nmpv-novid\nsend to playlist\ncheck playlist\nedit playlist\nget playlist bkp\nprimary to clipboard\nytdl\nytdl-mix\ntorrent" | dmenu -i)
+CLIP=$(xclip -selection clipboard -o)
+URL_regex='^(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]\.[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]$'
+# The URL_regex variable is to be used with an if statement to check if $CLIP
+# is a valid URL, for the cases that directly use an URL
+
+case "$choice" in
+
+"mpv playlist") 
+    mpv --fs --x11-name=feed --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
+    --ytdl-raw-options=concurrent-fragments=20,throttled-rate=500K \
+    $(awk '{print $NF}' ~/.local/share/playlist ||  \
+    notify-send 'Playlist is empty') || \
+    notify-send 'mpv failed to open playlist' && \
+    cat ~/.local/share/playlist > ~/.local/share/playlist-bkp && \
+    rm ~/.local/share/playlist & ;;
+
+"mpv") 
+    if [[ $CLIP =~ $URL_regex ]]; then
+        mpv --fs --loop --ytdl-format="bestvideo[height<=720]+bestaudio/best[height<=720]" \
+        --ytdl-raw-options=concurrent-fragments=20,throttled-rate=500K "$CLIP" >/dev/null 2>&1 
+    else
+        notify-send "Invalid or Not an URL"
+        exit 1
+    fi ;;
+
+"mpv-novid") 
+    xterm -e mpv --vid=no --ytdl-raw-options=concurrent-fragments=20,throttled-rate=500K --loop "$CLIP" & ;;
+
+"send to playlist") 
+    if [[ $CLIP =~ $URL_regex ]]; then
+        send2notify "$CLIP" 
+    else
+        notify-send "Invalid or Not an URL"
+        exit 1
+    fi ;;
+
+"check playlist") 
+    cat .local/share/playlist | dmenu -i -l $(wc -l < .local/share/playlist) || pdlnmpv & ;;
+#    checking=$(cat .local/share/playlist | dmenu -i -l `wc -l < .local/share/playlist`)
+#    [ -z "$checking" ] && { exit; } 
+#    linkhandler $(echo $checking | awk '{print $NF}') & ;;
+
+"edit playlist") 
+    if [[ -f ~/.local/share/playlist ]]; then
+        xterm -e nvim ~/.local/share/playlist
+        pdlnmpv &
+    else
+        notify-send 'Playlist is empty' 
+        pdlnmpv & 
+    fi    ;;
+
+"get playlist bkp")
+    if [[ -f ~/.local/share/playlist-bkp ]]; then
+        mv .local/share/playlist-bkp .local/share/playlist
+        notify-send 'Recovered Playlist'
+        pdlnmpv & 
+    else
+        notify-send 'Playlist Backup not found'
+        pdlnmpv &
+    fi ;;
+
+"primary to clipboard") 
+    xclip -selection primary -o | xclip -selection clipboard
+    notify-send 'Sent to clipboard' & ;;
+
+"torrent") 
+    if [[ $CLIP =~ $URL_regex ]]; then
+        tadd "$CLIP" 
+    else
+        notify-send "Invalid or Not a Torrent URL"
+        exit 1
+    fi ;;
+
+"ytdl")  
+    if [[ $CLIP =~ $URL_regex ]]; then
+        notify-send 'Youtube-dl Downloading'
+        youtube-dl "$CLIP" && \
+        notify-send 'Youtube-dl Complete'
+        exit
+    else
+        notify-send 'Invalid or Not an URL'
+        exit 1
+    fi ;;
+
+"ytdl-mix") 
+    if [[ $CLIP =~ $URL_regex ]]; then
+        cd ~/Media/Videos/Mixes/jMIX
+        notify-send 'Youtube-dl MIX'
+        youtube-dl "$CLIP" && \
+        notify-send 'Youtube-dl Complete'
+        exit
+    else
+        notify-send 'Invalid or Not an URL'
+        exit 1
+    fi ;;
+
+esac
