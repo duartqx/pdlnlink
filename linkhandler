@@ -21,16 +21,16 @@ case "$1" in
     # from waiting time (newsboat(1) is an RSS/Atom feed reader for the
     # terminal)
     
-    *phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*|*fsf.org*)
-        # Sites that don't send the full article throught RSS rdrview is a
-        # little program that acts like firefox reader mode it cleans the page
-        # from all distractions and keeps only the article and their related
-        # images rdrview only converts the html page, it is then required to
-        # pass the cleaned page to a browser
-        setsid -f rdrview -B qutebrowser "$1" >/dev/null 2>&1 ;;
+#    *phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*|*fsf.org*)
+#        # Sites that don't send the full article throught RSS rdrview is a
+#        # little program that acts like firefox reader mode it cleans the page
+#        # from all distractions and keeps only the article and their related
+#        # images rdrview only converts the html page, it is then required to
+#        # pass the cleaned page to a browser
+#        setsid -f rdrview -B qutebrowser "$1" >/dev/null 2>&1 ;;
     
-    *youtube.com/watch*|*odysee.com*|*youtube.com/playlist*|*youtu.be*| \
-    *ytb.trom.tf*|*hooktube.com*|*yewtu.be*|*videos*|*mkv|*webm|*mp4)
+    *youtube.com/watch*|*youtube.com/playlist*|*youtu.be*|*youtube.com/shorts*| \
+    *ytb.trom.tf*|*odysee.com*|*hooktube.com*|*yewtu.be*|*videos*|*mkv|*webm|*mp4)
         setsid -f mpv --quiet \
         --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
         "$1" >/dev/null 2>&1 ;;
@@ -61,7 +61,7 @@ case "$1" in
         --user-data-dir=$HOME/.config/chromium-app \
         --new-window --app="$1" >/dev/null 2>&1 ;;
 
-    *twitter.com*|*t.co*) 
+    *twitter.com*|*.t.co/*|*/t.co/*) 
         # Forces t.co shortened url to be expanded
         case "$1" in
             *t.co*)
