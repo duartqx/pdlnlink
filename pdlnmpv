@@ -2,7 +2,7 @@
 
 YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
-OPTIONS='mpv-playlist
+DM_OPTIONS='mpv-playlist
 mpv
 mpv-novid
 download-playlist
@@ -16,7 +16,7 @@ ytdl
 ytdl-mix
 torrent'
 # The options on the initial dmenu prompt
-CHOICE=$(echo "$OPTIONS" | dmenu -i)
+CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
 CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 
 [[ -z $CHOICE ]] && exit
@@ -44,7 +44,8 @@ playLocal() {
     fi
 }
 ytbNotify() {
-    youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" --newline \
+    youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
+        --add-chapters --newline \
         "$CLIP" 2>&1 | send2notify -p
 }
 
@@ -76,7 +77,7 @@ case "$CHOICE" in
         mkdir -p /tmp/playlist
         cd /tmp/playlist
         youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
-            --newline --no-abort-on-error \
+            --add-chapters --newline --no-abort-on-error \
             $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | send2notify -p
         bkpPlaylistFile
     else
