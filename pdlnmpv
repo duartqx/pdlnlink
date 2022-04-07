@@ -52,8 +52,8 @@ case "$CHOICE" in
     if [[ -d /tmp/playlist ]]; then
         # Plays local playlist if it exists
         playLocal
-        
     else
+        # Streams using the links at .local/share/playlist
         mpv "$YTDLQLTY" "$YTDLCONC" --fs --x11-name=feed \
         $(awk '{print $NF}' ~/.local/share/playlist || \
         notify-send 'Playlist is empty') || \
