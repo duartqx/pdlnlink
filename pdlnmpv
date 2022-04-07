@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-YTDLCONC='--ytdl-raw-options=concurrent-fragments=50,newline'
+YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
 OPTIONS='mpv-playlist
 mpv
@@ -42,8 +42,8 @@ playLocal() {
     fi
 }
 ytbNotify() {
-    youtube-dl "--${YTDLCONC:19}" -f "${YTDLQLTY:14}" --newline \
-        "$CLIP" 2>&1 | notify-pipe
+    youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" --newline \
+        "$CLIP" 2>&1 | send2notify -p
 }
 
 case "$CHOICE" in
@@ -76,7 +76,7 @@ case "$CHOICE" in
 
         cd /tmp/playlist
         youtube-dl "--${YTDLCONC:19}" --newline --no-abort-on-error \
-              $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | notify-pipe
+            $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | send2notify -p
         bkpPlaylistFile
     else
         notify-send "Playlist empty"
