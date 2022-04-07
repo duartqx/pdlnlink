@@ -70,12 +70,9 @@ case "$CHOICE" in
 
 "download-playlist")
     if [[ -f ~/.local/share/playlist ]]; then
-        # Backups old playlist
-        mkdir -p /tmp/playlist-bkp
-        mv /tmp/playlist/* /tmp/playlist-bkp/
-
         cd /tmp/playlist
-        youtube-dl "--${YTDLCONC:19}" --newline --no-abort-on-error \
+        youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
+            --newline --no-abort-on-error \
             $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | send2notify -p
         bkpPlaylistFile
     else
