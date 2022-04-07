@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+PLAYLISTFLDR=~/.local/share/playlist.d
 YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
 DM_OPTIONS='mpv-playlist
@@ -22,16 +23,20 @@ CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 [[ -z $CHOICE ]] && exit
 
 bkpLocal() {
-    # Backup local playlist
+    # Backup local playlist to a tmp folder - Gets cleared on reboot
     mkdir -p /tmp/playlist-bkp # Creates the bkp folder if it doesn't exists
-    mv /tmp/playlist/* /tmp/playlist-bkp/ # Moves all files to the bkp folder
+    mv $PLAYLISTFLDR/* /tmp/playlist-bkp/ # Moves all files to the bkp folder
 }
 bkpPlaylistFile() {
     cat ~/.local/share/playlist > ~/.local/share/playlist-bkp
     rm ~/.local/share/playlist
 }
+checkPlaylist() {
+    checkPlaylist="$(find $PLAYLISTFLDR/* -type f)"
+    if [[ -n "$checkPlaylist" ]]; then return 0; else return 1; fi
+}
 playLocal() {
-    cd /tmp/playlist
+    cd $PLAYLISTFLDR
     ls -rt | mpv --fs -playlist -
     # The substitution escapes the spaces
     # If mpv returns an error, the playlist is probably empty
@@ -52,8 +57,8 @@ ytbNotify() {
 case "$CHOICE" in
 
 "mpv-playlist") 
-    if [[ -d /tmp/playlist ]]; then
-        # Plays local playlist if it exists
+    if checkPlaylist; then
+        # Plays local playlist if there's files in it
         playLocal
     else
         # Streams using the links at .local/share/playlist
@@ -74,8 +79,7 @@ case "$CHOICE" in
 "download-playlist")
     if [[ -f ~/.local/share/playlist ]]; then
         notify-send "Downloading Playlist"
-        mkdir -p /tmp/playlist
-        cd /tmp/playlist
+        cd $PLAYLISTFLDR
         youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
             --add-chapters --newline --no-abort-on-error \
             $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | send2notify -p
@@ -86,18 +90,19 @@ case "$CHOICE" in
     fi ;;
 
 "play-local-playlist")
-    if [[ -d /tmp/playlist ]]; then 
-        # If the playlist folder exists, tries to play the files in it with mpv
+    if checkPlaylist; then
+        # If the playlist folder isn't empty, tries to play the files in it
+        # with mpv
         playLocal
     else
-        # If /tmp/playlist doesn't exists notifies it's empty and exit 1
+        # If the playlist is empty notifies it's empty and exit 1
         notify-send "Local playlist is Empty"
         exit 1
     fi ;;
 
 "check-playlist") 
     F_PLAYLIST=$(sed -e 's/^$*/🌐 /g' ~/.local/share/playlist 2>/dev/null)
-    L_PLAYLIST="$(find /tmp/playlist/* -printf "%T@ 📂 %f\n" | \
+    L_PLAYLIST="$(find $PLAYLISTFLDR/* -printf "%T@ 📂 %f\n" 2>/dev/null | \
                   sort -k1 | cut -d ' ' -f2-)"
     # sed is used on F_PLAYLIST to substitute the start of the lines with the
     # 'globe with meridians' emoji to symbolize that it's a video on the
@@ -109,11 +114,16 @@ case "$CHOICE" in
     if [[ -n $F_PLAYLIST && -n $L_PLAYLIST ]]; then
         # If F_PLAYLIST and L_PLAYLIST are not empty, prints both
         echo -e "$F_PLAYLIST\n\n$L_PLAYLIST" | dmenu -l $PLIST_LC;
+    elif [[ -n $F_PLAYLIST ]]; then
+        # If the file playlist has content and the local downloaded playlist is
+        # empty, prints the file
+        echo "$F_PLAYLIST" | dmenu -l $PLIST_LC;
     elif [[ -n $L_PLAYLIST ]]; then
         # If only the L_PLAYLIST isn't empty, prints it
         echo "$L_PLAYLIST" | dmenu -l $PLIST_LC;
     else
         notify-send 'Stream and Local Playlists Empty'
+        exit 1
     fi
     pdlnmpv ;;
 
