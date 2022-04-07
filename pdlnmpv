@@ -8,9 +8,8 @@ mpv-novid
 download-playlist
 play-local-playlist
 check-playlist
-check-local-playlist
 send-to-playlist
-edit-playlist
+edit-playlist-file
 get-playlist-bkp
 primary-to-clipboard
 ytdl
@@ -32,13 +31,18 @@ bkpPlaylistFile() {
     rm ~/.local/share/playlist
 }
 playLocal() {
-    mpv --fs /tmp/playlist
+    L_PLAYLIST="$(find /tmp/playlist/* -printf "%T@ %f\n" | \
+                  sort -k1,1r | cut -d ' ' -f2-)";
+    cd /tmp/playlist
+    mpv --fs "$(echo "${L_PLAYLIST// /\\ }")" 
+    # The substitution escapes the spaces
     # If mpv returns an error, the playlist is probably empty
     if [[ $? == 1 ]]; then
         notify-send "Local playlist is probably Empty"
         exit 1
     else
         bkpLocal
+        exit
     fi
 }
 ytbNotify() {
@@ -70,13 +74,15 @@ case "$CHOICE" in
 
 "download-playlist")
     if [[ -f ~/.local/share/playlist ]]; then
+        notify-send "Downloading Playlist"
+        mkdir -p /tmp/playlist
         cd /tmp/playlist
         youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
             --newline --no-abort-on-error \
             $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | send2notify -p
         bkpPlaylistFile
     else
-        notify-send "Playlist empty"
+        notify-send "Playlist file is empty"
         exit 1
     fi ;;
 
@@ -90,19 +96,33 @@ case "$CHOICE" in
         exit 1
     fi ;;
 
-"check-local-playlist")
-    PLAYLIST="$(find /tmp/playlist/* -printf "%f\n")"
-    echo "$PLAYLIST" | dmenu -p Local -l $(echo "$PLAYLIST" | wc -l) || \
-        pdlnmpv ;;
-
 "check-playlist") 
-    cat .local/share/playlist | \
-        dmenu -i -l $(wc -l < .local/share/playlist) || pdlnmpv ;;
+    F_PLAYLIST=$(sed -e 's/^$*/🌐 /g' ~/.local/share/playlist 2>/dev/null)
+    L_PLAYLIST="$(find /tmp/playlist/* -printf "%T@ 📂 %f\n" | \
+                  sort -k1,1r | cut -d ' ' -f2-)"
+    # sed is used on F_PLAYLIST to substitute the start of the lines with the
+    # 'globe with meridians' emoji to symbolize that it's a video on the
+    # internet/stream. while L_PLAYLIST has a folder at the start of every line
+    # to symbolize that it's a local file
+    PLIST_LC=$(( `echo "$F_PLAYLIST" | wc -l` + `echo "$L_PLAYLIST" | wc -l` + 1 ))
+    # PLIST_LC returns the number of lines of the playlist file + the
+    # downloaded files from the local playlist + an extra line for spacing
+    if [[ -n $F_PLAYLIST && -n $L_PLAYLIST ]]; then
+        # If F_PLAYLIST and L_PLAYLIST are not empty, prints both
+        echo -e "$F_PLAYLIST\n\n$L_PLAYLIST" | dmenu -l $PLIST_LC;
+    elif [[ -n $L_PLAYLIST ]]; then
+        # If only the L_PLAYLIST isn't empty, prints it
+        echo "$L_PLAYLIST" | dmenu -l $PLIST_LC;
+    else
+        notify-send 'Stream and Local Playlists Empty'
+    fi
+    pdlnmpv ;;
 
 "send-to-playlist") 
+    notify-send "Sending to Playlist File"
     send2notify "$CLIP" ;;
 
-"edit-playlist") 
+"edit-playlist-file") 
     # Needs a conditional because vim doesn't care if the file exits or not
     if [[ -f ~/.local/share/playlist ]]; then
         xterm -e nvim ~/.local/share/playlist
@@ -121,7 +141,7 @@ case "$CHOICE" in
     pdlnmpv ;;
 
 "primary-to-clipboard") 
-    xclip -selection primary -o | xclip -selection clipboard
+    echo "$CLIP" | xclip -selection clipboard
     notify-send 'Sent from Primary to Clipboard' ;;
 
 "torrent") 
