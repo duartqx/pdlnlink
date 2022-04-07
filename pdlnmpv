@@ -1,100 +1,149 @@
 #!/usr/bin/env bash
 
-choice=$(echo -e "mpv playlist\nmpv\nmpv-novid\nsend to playlist\ncheck playlist\nedit playlist\nget playlist bkp\nprimary to clipboard\nytdl\nytdl-mix\ntorrent" | dmenu -i)
-CLIP=$(xclip -selection clipboard -o)
-URL_regex='^(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]\.[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]$'
-# The URL_regex variable is to be used with an if statement to check if $CLIP
-# is a valid URL, for the cases that directly use an URL
+YTDLCONC='--ytdl-raw-options=concurrent-fragments=50,newline'
+YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
+OPTIONS='mpv-playlist
+mpv
+mpv-novid
+download-playlist
+play-local-playlist
+check-playlist
+check-local-playlist
+send-to-playlist
+edit-playlist
+get-playlist-bkp
+primary-to-clipboard
+ytdl
+ytdl-mix
+torrent'
+# The options on the initial dmenu prompt
+CHOICE=$(echo "$OPTIONS" | dmenu -i)
+CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 
-case "$choice" in
+[[ -z $CHOICE ]] && exit
 
-"mpv playlist") 
-    mpv --fs --x11-name=feed --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
-    --ytdl-raw-options=concurrent-fragments=20,throttled-rate=500K \
-    $(awk '{print $NF}' ~/.local/share/playlist ||  \
-    notify-send 'Playlist is empty') || \
-    notify-send 'mpv failed to open playlist' && \
-    cat ~/.local/share/playlist > ~/.local/share/playlist-bkp && \
-    rm ~/.local/share/playlist & ;;
+bkpLocal() {
+    # Backup local playlist
+    mkdir -p /tmp/playlist-bkp # Creates the bkp folder if it doesn't exists
+    mv /tmp/playlist/* /tmp/playlist-bkp/ # Moves all files to the bkp folder
+}
+bkpPlaylistFile() {
+    cat ~/.local/share/playlist > ~/.local/share/playlist-bkp
+    rm ~/.local/share/playlist
+}
+playLocal() {
+    mpv --fs /tmp/playlist
+    # If mpv returns an error, the playlist is probably empty
+    if [[ $? == 1 ]]; then
+        notify-send "Local playlist is probably Empty"
+        exit 1
+    else
+        bkpLocal
+    fi
+}
+ytbNotify() {
+    youtube-dl "--${YTDLCONC:19}" -f "${YTDLQLTY:14}" --newline \
+        "$CLIP" 2>&1 | notify-pipe
+}
+
+case "$CHOICE" in
+
+"mpv-playlist") 
+    if [[ -d /tmp/playlist ]]; then
+        # Plays local playlist if it exists
+        playLocal
+        
+    else
+        mpv "$YTDLQLTY" "$YTDLCONC" --fs --x11-name=feed \
+        $(awk '{print $NF}' ~/.local/share/playlist || \
+        notify-send 'Playlist is empty') || \
+        notify-send 'mpv failed to open playlist'
+        bkpPlaylistFile
+    fi ;; 
 
 "mpv") 
-    if [[ $CLIP =~ $URL_regex ]]; then
-        mpv --fs --loop --ytdl-format="bestvideo[height<=720]+bestaudio/best[height<=720]" \
-        --ytdl-raw-options=concurrent-fragments=20,throttled-rate=500K "$CLIP" >/dev/null 2>&1 
-    else
-        notify-send "Invalid or Not an URL"
-        exit 1
-    fi ;;
+    mpv "${YTDLQLTY//1080/720}" "$YTDLCONC" --fs --loop \
+        "$CLIP" >/dev/null 2>&1 ;;
 
 "mpv-novid") 
-    xterm -e mpv --vid=no --ytdl-raw-options=concurrent-fragments=20,throttled-rate=500K --loop "$CLIP" & ;;
+    xterm -e mpv "$YTDLCONC" --vid=no --loop "$CLIP" ;;
 
-"send to playlist") 
-    if [[ $CLIP =~ $URL_regex ]]; then
-        send2notify "$CLIP" 
+"download-playlist")
+    if [[ -f ~/.local/share/playlist ]]; then
+        # Backups old playlist
+        mkdir -p /tmp/playlist-bkp
+        mv /tmp/playlist/* /tmp/playlist-bkp/
+
+        cd /tmp/playlist
+        youtube-dl "--${YTDLCONC:19}" --newline --no-abort-on-error \
+              $(awk '{print $NF}' ~/.local/share/playlist) 2>&1 | notify-pipe
+        bkpPlaylistFile
     else
-        notify-send "Invalid or Not an URL"
+        notify-send "Playlist empty"
         exit 1
     fi ;;
 
-"check playlist") 
-    cat .local/share/playlist | dmenu -i -l $(wc -l < .local/share/playlist) || pdlnmpv & ;;
-#    checking=$(cat .local/share/playlist | dmenu -i -l `wc -l < .local/share/playlist`)
-#    [ -z "$checking" ] && { exit; } 
-#    linkhandler $(echo $checking | awk '{print $NF}') & ;;
+"play-local-playlist")
+    if [[ -d /tmp/playlist ]]; then 
+        # If the playlist folder exists, tries to play the files in it with mpv
+        playLocal
+    else
+        # If /tmp/playlist doesn't exists notifies it's empty and exit 1
+        notify-send "Local playlist is Empty"
+        exit 1
+    fi ;;
 
-"edit playlist") 
+"check-local-playlist")
+    PLAYLIST="$(find /tmp/playlist/* -printf "%f\n")"
+    echo "$PLAYLIST" | dmenu -p Local -l $(echo "$PLAYLIST" | wc -l) || \
+        pdlnmpv ;;
+
+"check-playlist") 
+    cat .local/share/playlist | \
+        dmenu -i -l $(wc -l < .local/share/playlist) || pdlnmpv ;;
+
+"send-to-playlist") 
+    send2notify "$CLIP" ;;
+
+"edit-playlist") 
+    # Needs a conditional because vim doesn't care if the file exits or not
     if [[ -f ~/.local/share/playlist ]]; then
         xterm -e nvim ~/.local/share/playlist
-        pdlnmpv &
     else
-        notify-send 'Playlist is empty' 
-        pdlnmpv & 
-    fi    ;;
+        notify-send 'Playlist is empty'
+    fi 
+    pdlnmpv ;;
 
-"get playlist bkp")
+"get-playlist-bkp")
     if [[ -f ~/.local/share/playlist-bkp ]]; then
-        mv .local/share/playlist-bkp .local/share/playlist
+        cat ~/.local/share/playlist-bkp > ~/.local/share/playlist
         notify-send 'Recovered Playlist'
-        pdlnmpv & 
     else
         notify-send 'Playlist Backup not found'
-        pdlnmpv &
-    fi ;;
+    fi 
+    pdlnmpv ;;
 
-"primary to clipboard") 
+"primary-to-clipboard") 
     xclip -selection primary -o | xclip -selection clipboard
-    notify-send 'Sent to clipboard' & ;;
+    notify-send 'Sent from Primary to Clipboard' ;;
 
 "torrent") 
-    if [[ $CLIP =~ $URL_regex ]]; then
-        tadd "$CLIP" 
-    else
-        notify-send "Invalid or Not a Torrent URL"
-        exit 1
-    fi ;;
+    tadd "$CLIP" ;;
 
 "ytdl")  
-    if [[ $CLIP =~ $URL_regex ]]; then
-        notify-send 'Youtube-dl Downloading'
-        youtube-dl "$CLIP" && \
-        notify-send 'Youtube-dl Complete'
-        exit
-    else
-        notify-send 'Invalid or Not an URL'
-        exit 1
-    fi ;;
+    ytbNotify ;;
 
 "ytdl-mix") 
-    if [[ $CLIP =~ $URL_regex ]]; then
-        cd ~/Media/Videos/Mixes/jMIX
-        notify-send 'Youtube-dl MIX'
-        youtube-dl "$CLIP" && \
-        notify-send 'Youtube-dl Complete'
-        exit
-    else
-        notify-send 'Invalid or Not an URL'
-        exit 1
-    fi ;;
+    cd ~/Media/Videos/Mixes/jMIX
+    ytbNotify ;;
 
 esac
+
+# if the content of the clipboard wasn't a url and some of the option tried to
+# use it, send the error to notify-send
+if [[ "$?" == 1 ]]; then
+    notify-send "Invalid or Not an URL"
+    exit 1
+fi
+
+exit
