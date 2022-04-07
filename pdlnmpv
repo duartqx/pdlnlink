@@ -31,10 +31,8 @@ bkpPlaylistFile() {
     rm ~/.local/share/playlist
 }
 playLocal() {
-    L_PLAYLIST="$(find /tmp/playlist/* -printf "%T@ %f\n" | \
-                  sort -k1,1r | cut -d ' ' -f2-)";
     cd /tmp/playlist
-    mpv --fs "$(echo "${L_PLAYLIST// /\\ }")" 
+    ls -rt | mpv --fs -playlist -
     # The substitution escapes the spaces
     # If mpv returns an error, the playlist is probably empty
     if [[ $? == 1 ]]; then
@@ -99,7 +97,7 @@ case "$CHOICE" in
 "check-playlist") 
     F_PLAYLIST=$(sed -e 's/^$*/🌐 /g' ~/.local/share/playlist 2>/dev/null)
     L_PLAYLIST="$(find /tmp/playlist/* -printf "%T@ 📂 %f\n" | \
-                  sort -k1,1r | cut -d ' ' -f2-)"
+                  sort -k1 | cut -d ' ' -f2-)"
     # sed is used on F_PLAYLIST to substitute the start of the lines with the
     # 'globe with meridians' emoji to symbolize that it's a video on the
     # internet/stream. while L_PLAYLIST has a folder at the start of every line
@@ -119,7 +117,6 @@ case "$CHOICE" in
     pdlnmpv ;;
 
 "send-to-playlist") 
-    notify-send "Sending to Playlist File"
     send2notify "$CLIP" ;;
 
 "edit-playlist-file") 
@@ -127,7 +124,7 @@ case "$CHOICE" in
     if [[ -f ~/.local/share/playlist ]]; then
         xterm -e nvim ~/.local/share/playlist
     else
-        notify-send 'Playlist is empty'
+        notify-send 'Playlist file is empty'
     fi 
     pdlnmpv ;;
 
