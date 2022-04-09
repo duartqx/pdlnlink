@@ -14,6 +14,7 @@ check-playlist
 send-to-playlist
 edit-playlist-file
 get-playlist-bkp
+get-local-backup
 primary-to-clipboard
 ytdl
 ytdl-mix
@@ -29,6 +30,16 @@ bkpLocal() {
     # Backup local playlist to a tmp folder - Gets cleared on reboot
     mkdir -p $PFLDRBKP # Creates the bkp folder if it doesn't exists
     mv $PLAYLISTFLDR/* $PFLDRBKP/ # Moves all files to the bkp folder
+}
+getLocalBKP() {
+    if [[ -n "$(find $PFLDRBKP -type f)" ]]; then
+        notify-send 'Getting files from Backup'
+        mv $PFLDRBKP/* $PLAYLISTFLDR/
+        notify-send 'Backup restored'
+    else
+        notify-send 'No Backup files found'
+        exit 1
+    fi
 }
 bkpPlaylistFile() {
     mv -f ${PLAYLISTFILE} ${PLAYLISTFILE}-bkp
@@ -172,6 +183,9 @@ case "$CHOICE" in
     fi 
 
     pdlnmpv ;;
+
+"get-local-backup")
+    getLocalBKP ;;
 
 "primary-to-clipboard") 
     echo "$CLIP" | xclip -selection clipboard
