@@ -9,7 +9,6 @@ DM_OPTIONS='mpv-playlist
 mpv
 mpv-novid
 download-playlist
-play-local-playlist
 check-playlist
 send-to-playlist
 edit-playlist-file
@@ -47,11 +46,7 @@ bkpPlaylistFile() {
 checkPlaylist() {
     # Returns 0 if the playlist exists, 1 if not
     findPlaylist="$(find $PLAYLISTFLDR/* -type f)"
-    if [[ -n "$findPlaylist" ]]; then 
-        return 0 
-    else 
-        return 1 
-    fi
+    [[ -n "$findPlaylist" ]]
 }
 playLocal() {
     cd $PLAYLISTFLDR

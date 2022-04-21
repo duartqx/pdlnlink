@@ -12,15 +12,6 @@ source prmgbtrbl
 
 case "$1" in
 
-    # 'setsid -f' is used throughout the script to make sure bash is creating a
-    # new process freeing any other program that executes linkhandler from
-    # waiting for this script to finish it's specially useful when I use
-    # linkhandler in conjunction with newsboat for example opening a youtube
-    # video without setsid makes newsboat hang waiting for the video on mpv to
-    # end while with 'setsid -f' newsboat continues working like normal free
-    # from waiting time (newsboat(1) is an RSS/Atom feed reader for the
-    # terminal)
-    
     *phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*| \
         *fsf.org*|*gamingonlinux*)
         # for sites that don't send the full article throught rss this will
@@ -30,16 +21,16 @@ case "$1" in
         # cleans the page from all distractions and keeps only the article and
         # their related images and prints to a html file, the -B option then
         # forces this output to be opened in an user defined browser
-        setsid -f rdrview -B surf "$1" >/dev/null 2>&1 ;;
+        rdrview -B surf "$1" >/dev/null 2>&1 ;;
     
     *youtube.com/watch*|*youtube.com/playlist*|*youtu.be*|*youtube.com/shorts*| \
     *ytb.trom.tf*|*odysee.com*|*hooktube.com*|*yewtu.be*|*videos*|*mkv|*webm|*mp4)
-        setsid -f mpv --quiet \
+        mpv --quiet \
         --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
         "$1" >/dev/null 2>&1 ;;
 
     *gif|*mp3|*flac|*opus|*mp3?source*)
-        setsid -f mpv --quiet "$1" >/dev/null 2>&1 ;;
+        mpv --quiet "$1" >/dev/null 2>&1 ;;
 
     *png|*jpg|*jpe|*jpeg)
         curl -sL "$1" > "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" && feh \
@@ -55,12 +46,12 @@ case "$1" in
         # nyaa.si is an anime torrent tracker
         # tadd is an script that sends torrent links to transmission to be
         # downloaded
-        setsid -f tadd "$1" ;;
+        tadd "$1" ;;
 
     *instagram.com*)
         # Opens instagram links with my ungoogled-chromium logged session to
         # avoid the site to nag about login
-        setsid -f chromium --class=surfium \
+        chromium --class=surfium \
         --user-data-dir=$HOME/.config/chromium-app \
         --new-window --app="$1" >/dev/null 2>&1 ;;
 
@@ -75,12 +66,12 @@ case "$1" in
         # Avoids twitter age restriction by opening the link throught a nitter
         # instance consequentially avoiding to be forced to login to be able to
         # see twitter's restricted content
-        setsid -f qutebrowser "$(echo "$twtr_url" | sed \
+        qutebrowser "$(echo "$twtr_url" | sed \
             -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/')" \
             >/dev/null 2>&1 ;;
     
     *)
         # Any other link is sent to be open by the web browser
-        setsid -f qutebrowser "$1" >/dev/null 2>&1
-        #setsid -f surf "$1" >/dev/null 2>&1
+        qutebrowser "$1" >/dev/null 2>&1 ;;
+        #surf "$1" >/dev/null 2>&1
 esac
