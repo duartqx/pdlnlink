@@ -61,7 +61,7 @@ playLocal() {
 }
 ytbNotify() {
     youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
-        --add-chapters --newline "$CLIP" 2>&1 | send2notify -p
+        --add-chapters --newline --no-playlist "$CLIP" 2>&1 | send2notify -p
 }
 
 case "$CHOICE" in
@@ -92,10 +92,12 @@ case "$CHOICE" in
         notify-send "Downloading Playlist"
         cd $PLAYLISTFLDR
         youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
-            --add-chapters --newline --no-abort-on-error \
+            --add-chapters --newline --no-abort-on-error --no-playlist \
             $(awk '{print $NF}' ${PLAYLISTFILE}) 2>&1 | send2notify -p
-        bkpPlaylistFile
-
+        if [[ $? == 0 ]]; then
+            notify-send "Finished Downloading"
+            bkpPlaylistFile
+        fi
     else
         notify-send "Playlist file is empty" && exit 1
     fi ;;
@@ -183,7 +185,7 @@ case "$CHOICE" in
     getLocalBKP ;;
 
 "primary-to-clipboard") 
-    echo "$CLIP" | xclip -selection clipboard
+    xclip -o | xclip -selection clipboard
     notify-send 'Sent from Primary to Clipboard' ;;
 
 "torrent") 
