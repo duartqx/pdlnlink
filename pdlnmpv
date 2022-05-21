@@ -60,8 +60,12 @@ playLocal() {
     fi
 }
 ytbNotify() {
-    youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
-        --add-chapters --newline --no-playlist "$CLIP" 2>&1 | send2notify -p
+    youtube-dl -f ${YTDLQLTY:15:-1} \
+        "--${YTDLCONC:19}" \
+        --add-chapters \
+        --newline \
+        --throttled-rate 600K \
+        --no-playlist "$CLIP" 2>&1 | send2notify -p
 }
 
 case "$CHOICE" in
