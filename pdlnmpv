@@ -3,6 +3,7 @@
 PLAYLISTFLDR=~/.local/share/Playlist.d
 PFLDRBKP=/tmp/Playlist-bkp
 PLAYLISTFILE=~/.local/share/playlist
+PLAYLISTFILEbkp=/tmp/playlist-bkp
 YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
 DM_OPTIONS='mpv-playlist
@@ -30,6 +31,12 @@ bkpLocal() {
     mkdir -p $PFLDRBKP # Creates the bkp folder if it doesn't exists
     mv $PLAYLISTFLDR/* $PFLDRBKP/ # Moves all files to the bkp folder
 }
+
+checkLocalPlaylist() {
+    # Returns 0 if the playlist is not empty, 1 if it is
+    [[ -n "$(find $PLAYLISTFLDR/* -type f)" ]]
+}
+
 getLocalBKP() {
     if [[ -n "$(find $PFLDRBKP -type f)" ]]; then
         notify-send 'Getting files from Backup'
@@ -40,14 +47,12 @@ getLocalBKP() {
         exit 1
     fi
 }
-bkpPlaylistFile() {
-    mv -f ${PLAYLISTFILE} ${PLAYLISTFILE}-bkp
+
+getPlaylistLine() {
+    sed -e 1$'{w/dev/stdout\n;d}' -i~ $1 | \
+        tee -a $PLAYLISTFILEbkp | awk '{print $NF}'
 }
-checkPlaylist() {
-    # Returns 0 if the playlist exists, 1 if not
-    findPlaylist="$(find $PLAYLISTFLDR/* -type f)"
-    [[ -n "$findPlaylist" ]]
-}
+
 playLocal() {
     cd $PLAYLISTFLDR
     ls -rt | mpv --fs -playlist -
@@ -59,19 +64,18 @@ playLocal() {
         bkpLocal && exit
     fi
 }
+
 ytbNotify() {
-    youtube-dl -f ${YTDLQLTY:15:-1} \
-        "--${YTDLCONC:19}" \
-        --add-chapters \
-        --newline \
-        --throttled-rate 600K \
+    youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
+        --add-chapters --newline --throttled-rate 600K \
         --no-playlist "$CLIP" 2>&1 | send2notify -p
 }
+
 
 case "$CHOICE" in
 
 "mpv-playlist") 
-    if checkPlaylist; then
+    if checkLocalPlaylist; then
         # Plays local playlist if there's files in it
         playLocal
 
@@ -81,40 +85,29 @@ case "$CHOICE" in
         $(awk '{print $NF}' ${PLAYLISTFILE} || \
         notify-send 'Playlist is empty') || \
         notify-send 'mpv failed to open playlist'
-        bkpPlaylistFile
+        mv $PLAYLISTFILE $PLAYLISTFILEbkp
     fi ;; 
 
 "mpv") 
-    #mpv "${YTDLQLTY//1080/720}" "$YTDLCONC" --fs --loop "$CLIP" ;;
     mpv "$YTDLCONC" --fs --loop "$CLIP" ;;
 
 "mpv-novid") 
     xterm -e mpv "$YTDLCONC" --vid=no --loop "$CLIP" ;;
 
 "download-playlist")
-    if [[ -f ${PLAYLISTFILE} ]]; then
+    if [[ -s ${PLAYLISTFILE} ]]; then
         notify-send "Downloading Playlist"
         cd $PLAYLISTFLDR
-        youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
-            --add-chapters --newline --no-abort-on-error --no-playlist \
-            $(awk '{print $NF}' ${PLAYLISTFILE}) 2>&1 | send2notify -p
-        if [[ $? == 0 ]]; then
-            notify-send "Finished Downloading"
-            bkpPlaylistFile
-        fi
+        while [[ -s $PLAYLISTFILE ]]; do
+            # Pops line from playlist file and stores it to variable
+            DWNLink=$(getPlaylistLine $PLAYLISTFILE)
+            youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
+                --add-chapters --newline --no-abort-on-error --no-playlist \
+                $DWNLink 2>&1 | send2notify -p
+        done
+        notify-send "Finished Downloading"
     else
         notify-send "Playlist file is empty" && exit 1
-    fi ;;
-
-"play-local-playlist")
-    if checkPlaylist; then
-        # If the playlist folder isn't empty, tries to play the files in it
-        # with mpv
-        playLocal
-
-    else
-        # If the playlist is empty notifies it's empty and exit 1
-        notify-send "Local playlist is empty" && exit 1
     fi ;;
 
 "check-playlist") 
@@ -165,7 +158,7 @@ case "$CHOICE" in
 
 "edit-playlist-file") 
     # Needs a conditional because vim doesn't care if the file exits or not
-    if [[ -f ${PLAYLISTFILE} ]]; then
+    if [[ -s ${PLAYLISTFILE} ]]; then
         xterm -e nvim ${PLAYLISTFILE}
 
     else
@@ -175,14 +168,12 @@ case "$CHOICE" in
     pdlnmpv ;;
 
 "get-playlist-bkp")
-    if [[ -f ${PLAYLISTFILE}-bkp ]]; then
-        cat ${PLAYLISTFILE}-bkp > ${PLAYLISTFILE}
+    if [[ -f $PLAYLISTFILEbkp ]]; then
+        tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
         notify-send 'Recovered Playlist'
-
     else
         notify-send 'Playlist Backup not found'
     fi 
-
     pdlnmpv ;;
 
 "get-local-backup")
