@@ -21,7 +21,7 @@ case "$1" in
         # cleans the page from all distractions and keeps only the article and
         # their related images and prints to a html file, the -B option then
         # forces this output to be opened in an user defined browser
-        rdrview -B surf "$1" >/dev/null 2>&1 ;;
+        rdrview -B "lynx -vikeys" "$1" 2>/dev/null ;;
     
     *youtube.com/watch*|*youtube.com/playlist*|*youtu.be*|*youtube.com/shorts*| \
     *ytb.trom.tf*|*odysee.com*|*hooktube.com*|*yewtu.be*|*videos*|*mkv|*webm|*mp4)
@@ -45,7 +45,7 @@ case "$1" in
     *nyaa.si*)
         # nyaa.si is an anime torrent tracker tadd is an script that sends
         # torrent links to transmission-daemon via transmission-remote
-        tadd "$1" ;;
+        setsid -f tadd "$1" ;;
 
     *instagram.com*)
         # Opens instagram links with my ungoogled-chromium logged session to
@@ -73,9 +73,7 @@ case "$1" in
         # Nitter is an opensource twitter frontend that has many instances
         # available online, so far 42l.fr was the best one I've found (but I
         # don't remember why)
-    
     *)
         # Any other link is sent to be open by the web browser
         qutebrowser "$1" >/dev/null 2>&1 ;;
-        #surf "$1" >/dev/null 2>&1
 esac

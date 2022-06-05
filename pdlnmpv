@@ -49,7 +49,7 @@ getLocalBKP() {
 }
 
 getPlaylistLine() {
-    sed -e 1$'{w/dev/stdout\n;d}' -i~ $1 | \
+    sed -e 1$'{w/dev/stdout\n;d}' -i~ "$1" | \
         tee -a $PLAYLISTFILEbkp | awk '{print $NF}'
 }
 
@@ -68,7 +68,7 @@ playLocal() {
 ytbNotify() {
     youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
         --add-chapters --newline --throttled-rate 600K \
-        --no-playlist "$CLIP" 2>&1 | send2notify -p
+        --no-playlist --no-abort-on-error "$1" 2>&1 | send2notify -p
 }
 
 
@@ -99,11 +99,8 @@ case "$CHOICE" in
         notify-send "Downloading Playlist"
         cd $PLAYLISTFLDR
         while [[ -s $PLAYLISTFILE ]]; do
-            # Pops line from playlist file and stores it to variable
-            DWNLink=$(getPlaylistLine $PLAYLISTFILE)
-            youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
-                --add-chapters --newline --no-abort-on-error --no-playlist \
-                $DWNLink 2>&1 | send2notify -p
+            # Pops line from playlist file and sends it to ytbNotify
+            ytbNotify $(getPlaylistLine $PLAYLISTFILE)
         done
         notify-send "Finished Downloading"
     else
@@ -168,7 +165,7 @@ case "$CHOICE" in
     pdlnmpv ;;
 
 "get-playlist-bkp")
-    if [[ -f $PLAYLISTFILEbkp ]]; then
+    if [[ -s $PLAYLISTFILEbkp ]]; then
         tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
         notify-send 'Recovered Playlist'
     else
@@ -187,11 +184,11 @@ case "$CHOICE" in
     tadd "$CLIP" ;;
 
 "ytdl")  
-    ytbNotify ;;
+    ytbNotify "$CLIP" ;;
 
 "ytdl-mix") 
     cd ~/Media/Videos/Mixes/jMIX
-    ytbNotify ;;
+    ytbNotify "$CLIP" ;;
 
 esac
 
