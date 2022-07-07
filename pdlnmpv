@@ -11,20 +11,25 @@ mpv
 mpv-novid
 download-playlist
 check-playlist
+clean-playlist-parts
 send-to-playlist
 edit-playlist-file
 get-playlist-bkp
-get-local-backup
+get-full-local-backup
+get-one-backup
 primary-to-clipboard
+stop-ytb
+torrent
 ytdl
-ytdl-mix
-torrent'
+ytdl-mix'
 # The options on the initial dmenu prompt
+
 CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
 CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 
-# If no DM_OPTIONS was selected, exits
+# If no DM_OPTIONS/CHOICE was selected, exits
 [[ -z $CHOICE ]] && exit
+
 
 bkpLocal() {
     # Backup local playlist to a tmp folder - Gets cleared on reboot
@@ -37,7 +42,11 @@ checkLocalPlaylist() {
     [[ -n "$(find $PLAYLISTFLDR/* -type f)" ]]
 }
 
-getLocalBKP() {
+cleanParts(){
+    rm $PLAYLISTFLDR/*.part
+}
+
+getFullLocalBKP() {
     if [[ -n "$(find $PFLDRBKP -type f)" ]]; then
         notify-send 'Getting files from Backup'
         mv $PFLDRBKP/* $PLAYLISTFLDR/
@@ -65,11 +74,18 @@ playLocal() {
     fi
 }
 
+stopYtb() {
+    killall yt-dlp
+    rm $PLAYLISTFLDR/*.part
+}
+
 ytbNotify() {
     youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
         --add-chapters --newline --throttled-rate 600K \
         --no-playlist --no-abort-on-error "$1" 2>&1 | send2notify -p
+    rm {*.part,*.f251.*}
 }
+
 
 
 case "$CHOICE" in
@@ -150,6 +166,9 @@ case "$CHOICE" in
         pdlnmpv
     fi   ;;
 
+"clean-playlist-parts")
+    cleanParts ;;
+
 "send-to-playlist") 
     send2notify -s "$CLIP" ;;
 
@@ -174,11 +193,27 @@ case "$CHOICE" in
     pdlnmpv ;;
 
 "get-local-backup")
-    getLocalBKP ;;
+    getFullLocalBKP ;;
+
+"get-one-backup")
+    L_PLBACKUP="$(find $PFLDRBKP/* -printf "%T@ 💽 %f\n" 2>/dev/null | \
+                  sort -k1 | cut -d ' ' -f2-)"
+    PLIST_LC=$(echo "$L_PLBACKUP" | wc -l)
+    CHOICE2=$([[ -n "$L_PLBACKUP" ]] && echo "$L_PLBACKUP" | dmenu -l $PLIST_LC)
+
+    [[ -n $CHOICE2 ]] && \
+        mv "$PFLDRBKP/${CHOICE2:2}" $PLAYLISTFLDR/ && \
+        notify-send "Moved ${CHOICE2:2} back to Playlist"
+        # ${CHOICE:2} starts the string from the index 2 until the end of it
+    pdlnmpv
+    ;;
 
 "primary-to-clipboard") 
     xclip -o | xclip -selection clipboard
     notify-send 'Sent from Primary to Clipboard' ;;
+
+"stop-ytb")
+    stopYtb ;;
 
 "torrent") 
     tadd "$CLIP" ;;
