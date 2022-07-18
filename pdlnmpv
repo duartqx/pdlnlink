@@ -4,28 +4,33 @@ PLAYLISTFLDR=~/.local/share/Playlist.d
 PFLDRBKP=/tmp/Playlist-bkp
 PLAYLISTFILE=~/.local/share/playlist
 PLAYLISTFILEbkp=/tmp/playlist-bkp
+
+
 YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
+
+
 DM_OPTIONS='mpv-playlist
 mpv
 mpv-novid
 download-playlist
 check-playlist
-clean-playlist-parts
 send-to-playlist
 edit-playlist-file
 get-playlist-bkp
 get-full-local-backup
 get-one-backup
 primary-to-clipboard
-stop-ytb
+stop-ytb-or-clean
 torrent
 ytdl
 ytdl-mix'
 # The options on the initial dmenu prompt
 
+
 CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
 CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
+
 
 # If no DM_OPTIONS/CHOICE was selected, exits
 [[ -z $CHOICE ]] && exit
@@ -40,10 +45,6 @@ bkpLocal() {
 checkLocalPlaylist() {
     # Returns 0 if the playlist is not empty, 1 if it is
     [[ -n "$(find $PLAYLISTFLDR/* -type f)" ]]
-}
-
-cleanParts(){
-    rm $PLAYLISTFLDR/*.part
 }
 
 getFullLocalBKP() {
@@ -74,16 +75,20 @@ playLocal() {
     fi
 }
 
-stopYtb() {
+cleanParts() {
+    rm $PLAYLISTFLDR/{*.part*,*.f251.*}
+}
+
+stopYtbOrClear() {
     killall yt-dlp
-    rm $PLAYLISTFLDR/*.part
+    cleanParts
 }
 
 ytbNotify() {
     youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
         --add-chapters --newline --throttled-rate 600K \
         --no-playlist --no-abort-on-error "$1" 2>&1 | send2notify -p
-    rm {*.part,*.f251.*}
+    cleanParts
 }
 
 
@@ -166,9 +171,6 @@ case "$CHOICE" in
         pdlnmpv
     fi   ;;
 
-"clean-playlist-parts")
-    cleanParts ;;
-
 "send-to-playlist") 
     send2notify -s "$CLIP" ;;
 
@@ -212,8 +214,8 @@ case "$CHOICE" in
     xclip -o | xclip -selection clipboard
     notify-send 'Sent from Primary to Clipboard' ;;
 
-"stop-ytb")
-    stopYtb ;;
+"stop-ytb-or-clean")
+    stopYtbOrClear ;;
 
 "torrent") 
     tadd "$CLIP" ;;
