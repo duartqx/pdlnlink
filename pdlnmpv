@@ -76,7 +76,7 @@ playLocal() {
 }
 
 cleanParts() {
-    rm $PLAYLISTFLDR/{*.part*,*.f251.*}
+    rm $PLAYLISTFLDR/{*.part*,*.f251.*,*.f303.*,*.ytdl}
 }
 
 stopYtbOrClear() {
@@ -86,6 +86,7 @@ stopYtbOrClear() {
 
 ytbNotify() {
     youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
+        --match-filter !is_live \
         --add-chapters --newline --throttled-rate 600K \
         --no-playlist --no-abort-on-error "$1" 2>&1 | send2notify -p
     cleanParts
