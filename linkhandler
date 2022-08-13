@@ -13,7 +13,7 @@ source prmgbtrbl
 case "$1" in
 
     *phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*| \
-        *fsf.org*|*gamingonlinux*)
+        *fsf.org*)#|*gamingonlinux*)
         # for sites that don't send the full article throught rss this will
         # force it to open in a browser with just the text and maybe an image
         # from the article.
@@ -76,6 +76,8 @@ case "$1" in
         # Nitter is an opensource twitter frontend that has many instances
         # available online, so far 42l.fr was the best one I've found (but I
         # don't remember why)
+    *jupyter/runtime*|*127.0.0.1*)
+        brave "$1" >/dev/null 2>&1 ;;
     *)
         # Any other link is sent to be open by the web browser
         qutebrowser "$1" >/dev/null 2>&1 ;;
