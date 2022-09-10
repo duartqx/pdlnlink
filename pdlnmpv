@@ -188,8 +188,15 @@ case "$CHOICE" in
 
 "get-playlist-bkp")
     if [[ -s $PLAYLISTFILEbkp ]]; then
-        tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
-        notify-send 'Recovered Playlist'
+        # Gets the backup line
+        TO_GET="$(cat $PLAYLISTFILEbkp | dmenu -i -l 10)"
+        # Saves it to the PLAYLISTFILE
+        echo $TO_GET >> $PLAYLISTFILE
+        # Removes the line from the playlist-bkp
+        grep -v "$TO_GET" $PLAYLISTFILEbkp > /tmp/tmpbkp
+        mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
+    #    tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
+    #    notify-send 'Recovered Playlist'
     else
         notify-send 'Playlist Backup not found'
     fi 
