@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# If the first argument is an youtube url, converts it to yewtu.be and opens it
+# with qutebrowser
+
+URL=$1
+
+if [[ $URL =~ youtu ]]; then
+    URL="https://yewtu.be/${URL##*/}"
+fi
+
+qutebrowser $URL
