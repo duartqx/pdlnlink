@@ -39,7 +39,8 @@ CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 bkpLocal() {
     # Backup local playlist to a tmp folder - Gets cleared on reboot
     mkdir -p $PFLDRBKP # Creates the bkp folder if it doesn't exists
-    mv $PLAYLISTFLDR/* $PFLDRBKP/ # Moves all files to the bkp folder
+    TOBACKUP=$(ls $PLAYLISTFLDR | grep -v '.part')
+    mv $TOBACKUP $PFLDRBKP/ # Moves all files to the bkp folder
 }
 
 checkLocalPlaylist() {
@@ -88,7 +89,7 @@ ytbNotify() {
     youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
         --match-filter !is_live \
         --add-chapters --newline --throttled-rate 600K \
-        --no-playlist --no-abort-on-error "$1" 2>&1 | send2notify -p
+        --no-playlist -R 1 "$1" 2>&1 | send2notify -p
     cleanParts
 }
 
@@ -193,7 +194,7 @@ case "$CHOICE" in
         # Saves it to the PLAYLISTFILE
         echo $TO_GET >> $PLAYLISTFILE
         # Removes the line from the playlist-bkp
-        grep -v "$TO_GET" $PLAYLISTFILEbkp > /tmp/tmpbkp
+        grep -v "$TO_GET" "$PLAYLISTFILEbkp" > /tmp/tmpbkp
         mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
     #    tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
     #    notify-send 'Recovered Playlist'
