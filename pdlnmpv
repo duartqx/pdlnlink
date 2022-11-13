@@ -51,6 +51,7 @@ getFullLocalBKP() {
         notify-send 'Getting files from Backup'
         mv $PFLDRBKP/* $PLAYLISTFLDR/
         notify-send 'Backup restored'
+
     else
         notify-send 'No Backup files found'
         exit 1
@@ -67,6 +68,7 @@ playLocal() {
     if (find $PLAYLISTFLDR/* -printf "%T@ 💽 %f\n" | \
         sort -k1 | cut -d ' ' -f2- | mpv --fs -playlist -); then
             bkpLocal && exit
+
     else
         # If mpv returns an error, the playlist is probably empty
         notify-send "Local playlist is probably Empty" && exit 1
@@ -97,10 +99,12 @@ case "$CHOICE" in
     if checkLocalPlaylist; then
         # Plays local playlist if there's files in it
         playLocal
+
     else
         # Streams using the links from the playlist file
         if [[ $(wc -l < ${PLAYLISTFILE}) == 0 ]]; then
             notify-send 'Playlist is empty' && exit 1
+
         else
             # shellcheck disable=SC2046
             if mpv "$YTDLQLTY" "$YTDLCONC" --fs --x11-name=feed \
@@ -126,6 +130,7 @@ case "$CHOICE" in
             ytbNotify "$(getPlaylistLine $PLAYLISTFILE)"
         done
         notify-send "Finished Downloading"
+
     else
         notify-send "Playlist file is empty" && exit 1
     fi ;;
@@ -161,14 +166,17 @@ case "$CHOICE" in
         notify-send 'Stream and Local Playlists Empty' && exit 1
     fi
 
-    # If a video is selected during check, plays it
     if [[ -n "$CHOICE2" ]]; then
         cd $PLAYLISTFLDR || exit
+        # If a video is selected during check, plays it
         if mpv --fs "${CHOICE2:2}" 2>/dev/null; then
             # Backups after playing
             mkdir -p $PFLDRBKP
             mv "${CHOICE2:2}" $PFLDRBKP
+
         else
+            # If CHOICE2 is not a downloaded file, opens the link with
+            # qutebrowser
             qutebrowser "${CHOICE2#* - }" & exit
         fi
 
@@ -201,6 +209,7 @@ case "$CHOICE" in
         mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
     #    tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
     #    notify-send 'Recovered Playlist'
+
     else
         notify-send 'Playlist Backup not found'
     fi 
