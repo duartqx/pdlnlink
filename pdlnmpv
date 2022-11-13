@@ -5,10 +5,9 @@ PFLDRBKP=/tmp/Playlist-bkp
 PLAYLISTFILE=~/.local/share/playlist
 PLAYLISTFILEbkp=/tmp/playlist-bkp
 
-
 YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
+# shellcheck disable=SC2089
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
-
 
 DM_OPTIONS='mpv-playlist
 mpv
@@ -27,10 +26,8 @@ ytdl
 ytdl-mix'
 # The options on the initial dmenu prompt
 
-
 CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
 CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
-
 
 # If no DM_OPTIONS/CHOICE was selected, exits
 [[ -z $CHOICE ]] && exit
@@ -39,7 +36,8 @@ CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 bkpLocal() {
     # Backup local playlist to a tmp folder - Gets cleared on reboot
     mkdir -p $PFLDRBKP # Creates the bkp folder if it doesn't exists
-    TOBACKUP=$(ls $PLAYLISTFLDR | grep -v '.part')
+    TOBACKUP=$(find $PLAYLISTFLDR/* | grep -v '.part')
+    # shellcheck disable=SC2086
     mv $TOBACKUP $PFLDRBKP/ # Moves all files to the bkp folder
 }
 
@@ -65,14 +63,13 @@ getPlaylistLine() {
 }
 
 playLocal() {
-    cd $PLAYLISTFLDR
-    ls -rt | mpv --fs -playlist -
-    # The substitution escapes the spaces
-    # If mpv returns an error, the playlist is probably empty
-    if [[ $? == 1 ]]; then
-        notify-send "Local playlist is probably Empty" && exit 1
+    cd $PLAYLISTFLDR || exit
+    if (find $PLAYLISTFLDR/* -printf "%T@ 💽 %f\n" | \
+        sort -k1 | cut -d ' ' -f2- | mpv --fs -playlist -); then
+            bkpLocal && exit
     else
-        bkpLocal && exit
+        # If mpv returns an error, the playlist is probably empty
+        notify-send "Local playlist is probably Empty" && exit 1
     fi
 }
 
@@ -86,13 +83,12 @@ stopYtbOrClear() {
 }
 
 ytbNotify() {
-    youtube-dl -f ${YTDLQLTY:15:-1} "--${YTDLCONC:19}" \
+    youtube-dl -f "${YTDLQLTY:15:-1}" "--${YTDLCONC:19}" \
         --match-filter !is_live \
         --add-chapters --newline --throttled-rate 600K \
         --no-playlist -R 1 "$1" 2>&1 | send2notify -p
     cleanParts
 }
-
 
 
 case "$CHOICE" in
@@ -101,14 +97,18 @@ case "$CHOICE" in
     if checkLocalPlaylist; then
         # Plays local playlist if there's files in it
         playLocal
-
     else
         # Streams using the links from the playlist file
-        mpv "$YTDLQLTY" "$YTDLCONC" --fs --x11-name=feed \
-        $(awk '{print $NF}' ${PLAYLISTFILE} || \
-        notify-send 'Playlist is empty') || \
-        notify-send 'mpv failed to open playlist'
-        mv $PLAYLISTFILE $PLAYLISTFILEbkp
+        if [[ $(wc -l < ${PLAYLISTFILE}) == 0 ]]; then
+            notify-send 'Playlist is empty' && exit 1
+        else
+            # shellcheck disable=SC2046
+            if mpv "$YTDLQLTY" "$YTDLCONC" --fs --x11-name=feed \
+                $(awk '{print $NF}' ${PLAYLISTFILE}) \
+                || notify-send 'Mpv failed to open playlist'; then
+                    mv $PLAYLISTFILE $PLAYLISTFILEbkp
+            fi
+        fi
     fi ;; 
 
 "mpv") 
@@ -120,10 +120,10 @@ case "$CHOICE" in
 "download-playlist")
     if [[ -s ${PLAYLISTFILE} ]]; then
         notify-send "Downloading Playlist"
-        cd $PLAYLISTFLDR
+        cd $PLAYLISTFLDR || exit
         while [[ -s $PLAYLISTFILE ]]; do
             # Pops line from playlist file and sends it to ytbNotify
-            ytbNotify $(getPlaylistLine $PLAYLISTFILE)
+            ytbNotify "$(getPlaylistLine $PLAYLISTFILE)"
         done
         notify-send "Finished Downloading"
     else
@@ -139,23 +139,23 @@ case "$CHOICE" in
     # internet/stream. while L_PLAYLIST has a folder at the start of every line
     # to symbolize that it's a local file
 
-    PLIST_LC=$(( `echo "$F_PLAYLIST" | wc -l` + `echo "$L_PLAYLIST" | wc -l` + 1 ))
+    _LC=$(( $(echo "$F_PLAYLIST" | wc -l) + $(echo "$L_PLAYLIST" | wc -l) + 1 ))
 
-    # PLIST_LC returns the number of lines of the playlist file + the
+    # _LC returns the number of lines of the playlist file + the
     # downloaded files from the local playlist + an extra line for spacing
 
     if [[ -n $F_PLAYLIST && -n $L_PLAYLIST ]]; then
         # If F_PLAYLIST and L_PLAYLIST are not empty, prints both
-        CHOICE2="$(echo -e "$F_PLAYLIST\n\n$L_PLAYLIST" | dmenu -l $PLIST_LC)"
+        CHOICE2="$(echo -e "$F_PLAYLIST\n\n$L_PLAYLIST" | dmenu -l $_LC)"
 
     elif [[ -n $F_PLAYLIST ]]; then
         # If the file playlist has content and the local downloaded playlist is
         # empty, prints the file
-        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -l $PLIST_LC)"
+        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -l $_LC)"
 
     elif [[ -n $L_PLAYLIST ]]; then
         # If only the L_PLAYLIST isn't empty, prints it
-        CHOICE2="$(echo "$L_PLAYLIST" | dmenu -l $PLIST_LC)"
+        CHOICE2="$(echo "$L_PLAYLIST" | dmenu -l $_LC)"
 
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
@@ -163,11 +163,14 @@ case "$CHOICE" in
 
     # If a video is selected during check, plays it
     if [[ -n "$CHOICE2" ]]; then
-        cd $PLAYLISTFLDR
-        mpv --fs "${CHOICE2:2}"
-        # Backups after playing
-        mkdir -p $PFLDRBKP
-        mv "${CHOICE2:2}" $PFLDRBKP
+        cd $PLAYLISTFLDR || exit
+        if mpv --fs "${CHOICE2:2}" 2>/dev/null; then
+            # Backups after playing
+            mkdir -p $PFLDRBKP
+            mv "${CHOICE2:2}" $PFLDRBKP
+        else
+            qutebrowser "${CHOICE2#* - }" & exit
+        fi
 
     else
         pdlnmpv
@@ -192,7 +195,7 @@ case "$CHOICE" in
         # Gets the backup line
         TO_GET="$(cat $PLAYLISTFILEbkp | dmenu -i -l 10)"
         # Saves it to the PLAYLISTFILE
-        echo $TO_GET >> $PLAYLISTFILE
+        echo "$TO_GET" >> $PLAYLISTFILE
         # Removes the line from the playlist-bkp
         grep -v "$TO_GET" "$PLAYLISTFILEbkp" > /tmp/tmpbkp
         mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
@@ -209,8 +212,8 @@ case "$CHOICE" in
 "get-one-backup")
     L_PLBACKUP="$(find $PFLDRBKP/* -printf "%T@ 💽 %f\n" 2>/dev/null | \
                   sort -k1 | cut -d ' ' -f2-)"
-    PLIST_LC=$(echo "$L_PLBACKUP" | wc -l)
-    CHOICE2=$([[ -n "$L_PLBACKUP" ]] && echo "$L_PLBACKUP" | dmenu -l $PLIST_LC)
+    _LC=$(echo "$L_PLBACKUP" | wc -l)
+    CHOICE2=$([[ -n "$L_PLBACKUP" ]] && echo "$L_PLBACKUP" | dmenu -l "$_LC")
 
     [[ -n $CHOICE2 ]] && \
         mv "$PFLDRBKP/${CHOICE2:2}" $PLAYLISTFLDR/ && \
@@ -233,7 +236,7 @@ case "$CHOICE" in
     ytbNotify "$CLIP" ;;
 
 "ytdl-mix") 
-    cd ~/Media/Videos/Mixes/jMIX
+    cd ~/Media/Videos/Mixes/jMIX || exit 1
     ytbNotify "$CLIP" ;;
 
 esac
