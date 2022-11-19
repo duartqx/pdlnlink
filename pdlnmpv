@@ -88,8 +88,7 @@ ytbNotify() {
     youtube-dl -f "${YTDLQLTY:15:-1}" "--${YTDLCONC:19}" \
         --match-filter !is_live \
         --add-chapters --newline --throttled-rate 600K \
-        --no-playlist -R 1 "$1" 2>&1 | send2notify -p
-    cleanParts
+        --no-playlist "$1" 2>&1 | send2notify -p
 }
 
 
