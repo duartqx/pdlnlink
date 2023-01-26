@@ -9,11 +9,11 @@ YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 # shellcheck disable=SC2089
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
 
-DM_OPTIONS='mpv-playlist
+DM_OPTIONS='check-playlist
 mpv
 mpv-novid
+mpv-playlist
 download-playlist
-check-playlist
 send-to-playlist
 edit-playlist-file
 get-playlist-bkp
@@ -38,6 +38,7 @@ bkpLocal() {
     mkdir -p $PFLDRBKP # Creates the bkp folder if it doesn't exists
     TOBACKUP=$(find $PLAYLISTFLDR/* | grep -v '.part')
     # shellcheck disable=SC2086
+    # ignores partial download files
     mv $TOBACKUP $PFLDRBKP/ # Moves all files to the bkp folder
 }
 
@@ -63,18 +64,6 @@ getPlaylistLine() {
         tee -a $PLAYLISTFILEbkp | awk '{print $NF}'
 }
 
-playLocal() {
-    cd $PLAYLISTFLDR || exit
-    if (find $PLAYLISTFLDR/* -printf "%T@ 💽 %f\n" | \
-        sort -k1 | cut -d ' ' -f2- | mpv --fs -playlist -); then
-            bkpLocal && exit
-
-    else
-        # If mpv returns an error, the playlist is probably empty
-        notify-send "Local playlist is probably Empty" && exit 1
-    fi
-}
-
 cleanParts() {
     rm $PLAYLISTFLDR/{*.part*,*.f251.*,*.f303.*,*.ytdl}
 }
@@ -96,22 +85,10 @@ case "$CHOICE" in
 
 "mpv-playlist") 
     if checkLocalPlaylist; then
-        # Plays local playlist if there's files in it
-        playLocal
-
+        mpv --fs -playlist $PLAYLISTFLDR/*
+        bkpLocal && exit
     else
-        # Streams using the links from the playlist file
-        if [[ $(wc -l < ${PLAYLISTFILE}) == 0 ]]; then
-            notify-send 'Playlist is empty' && exit 1
-
-        else
-            # shellcheck disable=SC2046
-            if mpv "$YTDLQLTY" "$YTDLCONC" --fs --x11-name=feed \
-                $(awk '{print $NF}' ${PLAYLISTFILE}) \
-                || notify-send 'Mpv failed to open playlist'; then
-                    mv $PLAYLISTFILE $PLAYLISTFILEbkp
-            fi
-        fi
+        notify-send "Local playlist is probably Empty" && exit 1
     fi ;; 
 
 "mpv") 
@@ -155,11 +132,11 @@ case "$CHOICE" in
     elif [[ -n $F_PLAYLIST ]]; then
         # If the file playlist has content and the local downloaded playlist is
         # empty, prints the file
-        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -l $_LC)"
+        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -i -l $_LC)"
 
     elif [[ -n $L_PLAYLIST ]]; then
         # If only the L_PLAYLIST isn't empty, prints it
-        CHOICE2="$(echo "$L_PLAYLIST" | dmenu -l $_LC)"
+        CHOICE2="$(echo "$L_PLAYLIST" | dmenu -i -l $_LC)"
 
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
