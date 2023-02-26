@@ -128,16 +128,13 @@ case "$CHOICE" in
     if [[ -n $F_PLAYLIST && -n $L_PLAYLIST ]]; then
         # If F_PLAYLIST and L_PLAYLIST are not empty, prints both
         CHOICE2="$(echo -e "$F_PLAYLIST\n\n$L_PLAYLIST" | dmenu -l $_LC)"
-
     elif [[ -n $F_PLAYLIST ]]; then
         # If the file playlist has content and the local downloaded playlist is
         # empty, prints the file
         CHOICE2="$(echo "$F_PLAYLIST" | dmenu -i -l $_LC)"
-
     elif [[ -n $L_PLAYLIST ]]; then
         # If only the L_PLAYLIST isn't empty, prints it
         CHOICE2="$(echo "$L_PLAYLIST" | dmenu -i -l $_LC)"
-
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
     fi
@@ -149,13 +146,11 @@ case "$CHOICE" in
             # Backups after playing
             mkdir -p $PFLDRBKP
             mv "${CHOICE2:2}" $PFLDRBKP
-
         else
             # If CHOICE2 is not a downloaded file, opens the link with
             # qutebrowser
             qutebrowser "${CHOICE2#* - }" & exit
         fi
-
     else
         pdlnmpv
     fi   ;;
@@ -167,7 +162,6 @@ case "$CHOICE" in
     # Needs a conditional because vim doesn't care if the file exits or not
     if [[ -s ${PLAYLISTFILE} ]]; then
         xterm -e nvim ${PLAYLISTFILE}
-
     else
         notify-send 'Playlist file is empty'
     fi 
@@ -185,7 +179,6 @@ case "$CHOICE" in
         mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
     #    tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
     #    notify-send 'Recovered Playlist'
-
     else
         notify-send 'Playlist Backup not found'
     fi 
