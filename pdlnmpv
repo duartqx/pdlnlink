@@ -10,15 +10,10 @@ YTDLCONC='--ytdl-raw-options=concurrent-fragments=50'
 YTDLQLTY='--ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]"'
 
 DM_OPTIONS='check-playlist
-mpv
-mpv-novid
-mpv-playlist
-download-playlist
+full-playlist
 send-to-playlist
 edit-playlist-file
 get-playlist-bkp
-get-full-local-backup
-get-one-backup
 primary-to-clipboard
 stop-ytb-or-clean
 torrent
@@ -27,130 +22,63 @@ ytdl-mix'
 # The options on the initial dmenu prompt
 
 CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
-CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
-
 # If no DM_OPTIONS/CHOICE was selected, exits
 [[ -z $CHOICE ]] && exit
-
-
-bkpLocal() {
-    # Backup local playlist to a tmp folder - Gets cleared on reboot
-    mkdir -p $PFLDRBKP # Creates the bkp folder if it doesn't exists
-    TOBACKUP=$(find $PLAYLISTFLDR/* | grep -v '.part')
-    # shellcheck disable=SC2086
-    # ignores partial download files
-    mv $TOBACKUP $PFLDRBKP/ # Moves all files to the bkp folder
-}
-
-checkLocalPlaylist() {
-    # Returns 0 if the playlist is not empty, 1 if it is
-    [[ -n "$(find $PLAYLISTFLDR/* -type f)" ]]
-}
-
-getFullLocalBKP() {
-    if [[ -n "$(find $PFLDRBKP -type f)" ]]; then
-        notify-send 'Getting files from Backup'
-        mv $PFLDRBKP/* $PLAYLISTFLDR/
-        notify-send 'Backup restored'
-
-    else
-        notify-send 'No Backup files found'
-        exit 1
-    fi
-}
+CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 
 getPlaylistLine() {
     sed -e 1$'{w/dev/stdout\n;d}' -i~ "$1" | \
         tee -a $PLAYLISTFILEbkp | awk '{print $NF}'
 }
 
-cleanParts() {
-    rm $PLAYLISTFLDR/{*.part*,*.f251.*,*.f303.*,*.ytdl}
-}
-
 stopYtbOrClear() {
     killall yt-dlp
-    cleanParts
+    rm $PLAYLISTFLDR/{*.part*,*.f251.*,*.f303.*,*.ytdl}
 }
 
 ytbNotify() {
     youtube-dl -f "${YTDLQLTY:15:-1}" "--${YTDLCONC:19}" \
-        --match-filter !is_live \
-        --add-chapters --newline --throttled-rate 600K \
-        --no-playlist "$1" 2>&1 | send2notify -p
+        --match-filter !is_live --add-chapters \
+        --newline --no-playlist "$1" 2>&1 | send2notify -p
 }
 
 
 case "$CHOICE" in
 
-"mpv-playlist") 
-    if checkLocalPlaylist; then
-        mpv --fs -playlist $PLAYLISTFLDR/*
-        bkpLocal && exit
+"full-playlist")
+    if [[ -f $PLAYLISTFILE ]]; then
+        # if playlist exists and is not empty
+        PLAYLIST_LIST=$(
+            cat $PLAYLISTFILE \
+                | awk '{print $NF}' \
+                | awk -F '=' '{gsub("$", ",", $2); printf $2}')
+        minilinkhandler "https://youtube.com/embed/?playlist=$PLAYLIST_LIST&autoplay=1"
+        cat $PLAYLISTFILE >> $PLAYLISTFILEbkp
+        rm $PLAYLISTFILE
     else
         notify-send "Local playlist is probably Empty" && exit 1
     fi ;; 
 
-"mpv") 
-    mpv "$YTDLCONC" --fs --loop "$CLIP" ;;
-
-"mpv-novid") 
-    xterm -e mpv "$YTDLCONC" --vid=no --loop "$CLIP" ;;
-
-"download-playlist")
-    if [[ -s ${PLAYLISTFILE} ]]; then
-        notify-send "Downloading Playlist"
-        cd $PLAYLISTFLDR || exit
-        while [[ -s $PLAYLISTFILE ]]; do
-            # Pops line from playlist file and sends it to ytbNotify
-            ytbNotify "$(getPlaylistLine $PLAYLISTFILE)"
-        done
-        notify-send "Finished Downloading"
-
-    else
-        notify-send "Playlist file is empty" && exit 1
-    fi ;;
-
 "check-playlist") 
     F_PLAYLIST=$(sed -e 's/^$*/🌐 /g' ${PLAYLISTFILE} 2>/dev/null)
-    L_PLAYLIST="$(find $PLAYLISTFLDR/* -printf "%T@ 💽 %f\n" 2>/dev/null | \
-                  sort -k1 | cut -d ' ' -f2-)"
-    # sed is used on F_PLAYLIST to substitute the start of the lines with the
-    # 'globe with meridians' emoji to symbolize that it's a video on the
-    # internet/stream. while L_PLAYLIST has a folder at the start of every line
-    # to symbolize that it's a local file
-
-    _LC=$(( $(echo "$F_PLAYLIST" | wc -l) + $(echo "$L_PLAYLIST" | wc -l) + 1 ))
-
+    _LC=$(cat "$PLAYLISTFILE" | wc -l)
     # _LC returns the number of lines of the playlist file + the
     # downloaded files from the local playlist + an extra line for spacing
 
-    if [[ -n $F_PLAYLIST && -n $L_PLAYLIST ]]; then
-        # If F_PLAYLIST and L_PLAYLIST are not empty, prints both
-        CHOICE2="$(echo -e "$F_PLAYLIST\n\n$L_PLAYLIST" | dmenu -l $_LC)"
-    elif [[ -n $F_PLAYLIST ]]; then
-        # If the file playlist has content and the local downloaded playlist is
-        # empty, prints the file
-        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -i -l $_LC)"
-    elif [[ -n $L_PLAYLIST ]]; then
-        # If only the L_PLAYLIST isn't empty, prints it
-        CHOICE2="$(echo "$L_PLAYLIST" | dmenu -i -l $_LC)"
+    if [[ -n $F_PLAYLIST ]]; then
+        # If the playlist file has anything in it
+        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -i -l $_LC | awk '{print $NF}')"
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
     fi
 
     if [[ -n "$CHOICE2" ]]; then
-        cd $PLAYLISTFLDR || exit
-        # If a video is selected during check, plays it
-        if mpv --fs "${CHOICE2:2}" 2>/dev/null; then
-            # Backups after playing
-            mkdir -p $PFLDRBKP
-            mv "${CHOICE2:2}" $PFLDRBKP
-        else
-            # If CHOICE2 is not a downloaded file, opens the link with
-            # qutebrowser
-            qutebrowser "${CHOICE2#* - }" & exit
-        fi
+        # Opens with minilinkhandler as an embed page
+        minilinkhandler "https://youtube.com/embed/$(echo $CHOICE2 | awk -F '=' '{print $2}')?autoplay=1"
+        echo $CHOICE2 >> $PLAYLISTFILEbkp
+        grep -v "$CHOICE2" "$PLAYLISTFILE" > /tmp/tmpbkp
+        [[ -n $(cat /tmp/tmpbkp) ]] && mv -f /tmp/tmpbkp $PLAYLISTFILE
+        # if tmpbkp is not empty moves it to PLAYLISTFILE
     else
         pdlnmpv
     fi   ;;
@@ -161,7 +89,7 @@ case "$CHOICE" in
 "edit-playlist-file") 
     # Needs a conditional because vim doesn't care if the file exits or not
     if [[ -s ${PLAYLISTFILE} ]]; then
-        xterm -e nvim ${PLAYLISTFILE}
+        alacritty -e nvim ${PLAYLISTFILE}
     else
         notify-send 'Playlist file is empty'
     fi 
@@ -172,6 +100,7 @@ case "$CHOICE" in
     if [[ -s $PLAYLISTFILEbkp ]]; then
         # Gets the backup line
         TO_GET="$(cat $PLAYLISTFILEbkp | dmenu -i -l 10)"
+        [[ -z $TO_GET ]] && exit
         # Saves it to the PLAYLISTFILE
         echo "$TO_GET" >> $PLAYLISTFILE
         # Removes the line from the playlist-bkp
@@ -183,22 +112,6 @@ case "$CHOICE" in
         notify-send 'Playlist Backup not found'
     fi 
     pdlnmpv ;;
-
-"get-local-backup")
-    getFullLocalBKP ;;
-
-"get-one-backup")
-    L_PLBACKUP="$(find $PFLDRBKP/* -printf "%T@ 💽 %f\n" 2>/dev/null | \
-                  sort -k1 | cut -d ' ' -f2-)"
-    _LC=$(echo "$L_PLBACKUP" | wc -l)
-    CHOICE2=$([[ -n "$L_PLBACKUP" ]] && echo "$L_PLBACKUP" | dmenu -l "$_LC")
-
-    [[ -n $CHOICE2 ]] && \
-        mv "$PFLDRBKP/${CHOICE2:2}" $PLAYLISTFLDR/ && \
-        notify-send "Moved ${CHOICE2:2} back to Playlist"
-        # ${CHOICE:2} starts the string from the index 2 until the end of it
-    pdlnmpv
-    ;;
 
 "primary-to-clipboard") 
     xclip -o | xclip -selection clipboard

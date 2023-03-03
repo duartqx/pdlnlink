@@ -80,5 +80,6 @@ case "$1" in
         brave "$1" >/dev/null 2>&1 ;;
     *)
         # Any other link is sent to be open by the web browser
-        qutebrowser "$1" >/dev/null 2>&1 ;;
+        #qutebrowser "$1" >/dev/null 2>&1 ;;
+        chromium "$1" >/dev/null 2>&1 ;;
 esac
