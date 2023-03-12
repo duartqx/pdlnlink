@@ -4,8 +4,11 @@
 
 URL=$1
 
-if [[ $URL =~ youtu ]]; then
-    URL="https://yewtu.be/${URL##*/}"
-fi
+#if [[ $URL =~ youtu ]]; then
+#    URL="https://yewtu.be/${URL##*/}"
+#fi
 
-qutebrowser $URL
+#qutebrowser $URL
+chromium --user-data-dir=$HOME/.config/chromium-app  --class=Any \
+    --new-window --enable-features=WebUIDarkMode --force-dark-mode \
+    --incognito --app=$URL

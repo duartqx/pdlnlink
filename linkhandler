@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC1091
 source prmgbtrbl
+# shellcheck disable=SC2154
 [[ $prvt == 1 ]] && exit
 
 # Feed script a url or file location.
@@ -9,77 +11,89 @@ source prmgbtrbl
 # if a music file or pdf, it will download,
 # otherwise it opens link in browser.
 
-
 case "$1" in
 
-    #*phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*| \
-    #    *fsf.org*)#|*gamingonlinux*)
-    #    # for sites that don't send the full article throught rss this will
-    #    # force it to open in a browser with just the text and maybe an image
-    #    # from the article.
-    #    # Rdrview is a little program that acts like firefox reader mode, it
-    #    # cleans the page from all distractions and keeps only the article and
-    #    # their related images and prints to a html file, the -B option then
-    #    # forces this output to be opened in an user defined browser
-    #    $TERMINAL -e rdrview -B "lynx -vikeys" "$1" 2>/dev/null ;;
-    
-    *youtube.com/watch*|*youtube.com/playlist*|*youtu.be*|*youtube.com/shorts*| \
-    *ytb.trom.tf*|*odysee.com*|*hooktube.com*|*yewtu.be*|*videos*|*mkv|*webm|*mp4)
-        mpv --quiet \
+#*phoronix.com*|*gematsu.com*|*nichegamer.com*|*nintendolife.com*| \
+#    *fsf.org*)#|*gamingonlinux*)
+#    # for sites that don't send the full article throught rss this will
+#    # force it to open in a browser with just the text and maybe an image
+#    # from the article.
+#    # Rdrview is a little program that acts like firefox reader mode, it
+#    # cleans the page from all distractions and keeps only the article and
+#    # their related images and prints to a html file, the -B option then
+#    # forces this output to be opened in an user defined browser
+#    $TERMINAL -e rdrview -B "lynx -vikeys" "$1" 2>/dev/null ;;
+
+*youtube.com/watch* | *youtube.com/playlist* | *youtu.be* | \
+    *youtube.com/shorts* | *ytb.trom.tf* | *hooktube.com* | \
+    *odisee.com* | *yewtu.be* | *videos* | *mkv | *webm | *mp4)
+    mpv --quiet \
         --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
-        "$1" >/dev/null 2>&1 ;;
+        "$1" >/dev/null 2>&1
+    ;;
 
-    *gif|*mp3|*flac|*opus|*mp3?source*)
-        mpv --quiet "$1" >/dev/null 2>&1 ;;
+*gif | *mp3 | *flac | *opus | *mp3?source*)
+    mpv --quiet "$1" >/dev/null 2>&1
+    ;;
 
-    *png|*jpg|*jpe|*jpeg)
-        curl -sL "$1" > "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" && feh \
-            --image-bg '#1A1C1E' --scale-down --start-at "/tmp/$(echo "$1" | \
-            sed "s/.*\///;s/%20/ /g")"  >/dev/null 2>&1 & ;;
+*png | *jpg | *jpe | *jpeg)
+    curl -sL "$1" >"/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" && feh \
+        --image-bg '#1A1C1E' --scale-down --start-at "/tmp/$(echo "$1" |
+            sed "s/.*\///;s/%20/ /g")" >/dev/null 2>&1 &
+    ;;
 
-    *pdf|*cbz|*cbr)
-        curl -sL "$1" > "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" && \
-            zathura "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")"  \
-            >/dev/null 2>&1 & ;;
+*pdf | *cbz | *cbr)
+    curl -sL "$1" >"/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" &&
+        zathura "/tmp/$(echo "$1" | sed "s/.*\///;s/%20/ /g")" \
+            >/dev/null 2>&1 &
+    ;;
 
-    *nyaa.si*)
-        # nyaa.si is an anime torrent tracker tadd is an script that sends
-        # torrent links to transmission-daemon via transmission-remote
-        setsid -f tadd "$1" ;;
+*nyaa.si*)
+    # nyaa.si is an anime torrent tracker tadd is an script that sends
+    # torrent links to transmission-daemon via transmission-remote
+    setsid -f tadd "$1"
+    ;;
 
-    *instagram.com*)
-        # Opens instagram links with my ungoogled-chromium logged session to
-        # avoid the site nagging about login
-        chromium --class=surfium \
-        --user-data-dir=$HOME/.config/chromium-app \
-        --new-window --app="$1" >/dev/null 2>&1 ;;
+*instagram.com*)
+    # Opens instagram links with my ungoogled-chromium logged session to
+    # avoid the site nagging about login
+    chromium --class=surfium \
+        --user-data-dir="$HOME/.config/chromium-app" \
+        --new-window --app="$1" >/dev/null 2>&1
+    ;;
 
-    *twitter.com*|*.t.co/*|*/t.co/*) 
-        case "$1" in
-            # Forces t.co shortened url to be expanded, so that I can take the
-            # ending part of the url and substitute the beginning with a nitter
-            # instance url
-            *video*)
-                mpv --loop "$1" &
-                exit ;;
-            *t.co*)
-                twtr_url="$(curl -sIL $1 | sed -n 's/location: *//p')" ;;
-            *)
-                twtr_url="$1" ;;
-        esac
-        # Avoids twitter nagging about login by opening the link throught a
-        # nitter instance that doesn't care about accounts
-        qutebrowser "$(echo "$twtr_url" | sed \
-            -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/')" \
-            >/dev/null 2>&1 ;;
-
-        # Nitter is an opensource twitter frontend that has many instances
-        # available online, so far 42l.fr was the best one I've found (but I
-        # don't remember why)
-    *jupyter/runtime*|*127.0.0.1*)
-        brave "$1" >/dev/null 2>&1 ;;
+*twitter.com* | *.t.co/* | */t.co/*)
+    case "$1" in
+    # Forces t.co shortened url to be expanded, so that I can take the
+    # ending part of the url and substitute the beginning with a nitter
+    # instance url
+    *video*)
+        mpv --loop "$1" &
+        exit
+        ;;
+    *t.co*)
+        twtr_url="$(curl -sIL $1 | sed -n 's/location: *//p')"
+        ;;
     *)
-        # Any other link is sent to be open by the web browser
-        #qutebrowser "$1" >/dev/null 2>&1 ;;
-        chromium "$1" >/dev/null 2>&1 ;;
+        twtr_url="$1"
+        ;;
+    esac
+    # Avoids twitter nagging about login by opening the link throught a
+    # nitter instance that doesn't care about accounts
+    qutebrowser "$(echo "$twtr_url" | sed \
+        -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/')" \
+        >/dev/null 2>&1
+    ;;
+
+    # Nitter is an opensource twitter frontend that has many instances
+    # available online, so far 42l.fr was the best one I've found (but I
+    # don't remember why)
+*jupyter/runtime* | *127.0.0.1*)
+    brave "$1" >/dev/null 2>&1
+    ;;
+*)
+    # Any other link is sent to be open by the web browser
+    #qutebrowser "$1" >/dev/null 2>&1 ;;
+    chromium "$1" >/dev/null 2>&1
+    ;;
 esac

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 PLAYLISTFLDR=~/.local/share/Playlist.d
-PFLDRBKP=/tmp/Playlist-bkp
+#PFLDRBKP=/tmp/Playlist-bkp
 PLAYLISTFILE=~/.local/share/playlist
 PLAYLISTFILEbkp=/tmp/playlist-bkp
 
@@ -27,8 +27,10 @@ CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
 CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
 
 getPlaylistLine() {
-    sed -e 1$'{w/dev/stdout\n;d}' -i~ "$1" | \
-        tee -a $PLAYLISTFILEbkp | awk '{print $NF}'
+    # shellcheck disable=SC2317
+    sed -e 1$'{w/dev/stdout\n;d}' -i~ "$1" |
+        tee -a "$PLAYLISTFILEbkp" |
+        awk '{print $NF}'
 }
 
 stopYtbOrClear() {
@@ -39,9 +41,9 @@ stopYtbOrClear() {
 ytbNotify() {
     youtube-dl -f "${YTDLQLTY:15:-1}" "--${YTDLCONC:19}" \
         --match-filter !is_live --add-chapters \
-        --newline --no-playlist "$1" 2>&1 | send2notify -p
+        --newline --no-playlist "$1" 2>&1 |
+        send2notify -p
 }
-
 
 case "$CHOICE" in
 
@@ -49,52 +51,71 @@ case "$CHOICE" in
     if [[ -f $PLAYLISTFILE ]]; then
         # if playlist exists and is not empty
         PLAYLIST_LIST=$(
-            cat $PLAYLISTFILE \
-                | awk '{print $NF}' \
-                | awk -F '=' '{gsub("$", ",", $2); printf $2}')
+            cat $PLAYLISTFILE |
+                awk '{print $NF}' |
+                awk -F '=' '{gsub("$", ",", $2); printf $2}'
+        )
         minilinkhandler "https://youtube.com/embed/?playlist=$PLAYLIST_LIST&autoplay=1"
-        cat $PLAYLISTFILE >> $PLAYLISTFILEbkp
+        cat $PLAYLISTFILE >>$PLAYLISTFILEbkp
         rm $PLAYLISTFILE
     else
         notify-send "Local playlist is probably Empty" && exit 1
-    fi ;; 
+    fi
+    ;;
 
-"check-playlist") 
+"check-playlist")
     F_PLAYLIST=$(sed -e 's/^$*/🌐 /g' ${PLAYLISTFILE} 2>/dev/null)
-    _LC=$(cat "$PLAYLISTFILE" | wc -l)
+    _LC=$(wc -l <"$PLAYLISTFILE")
     # _LC returns the number of lines of the playlist file + the
     # downloaded files from the local playlist + an extra line for spacing
 
     if [[ -n $F_PLAYLIST ]]; then
         # If the playlist file has anything in it
-        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -i -l $_LC | awk '{print $NF}')"
+        CHOICE2="$(echo "$F_PLAYLIST" | dmenu -i -l "$_LC" | awk '{print $NF}')"
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
     fi
 
     if [[ -n "$CHOICE2" ]]; then
         # Opens with minilinkhandler as an embed page
-        minilinkhandler "https://youtube.com/embed/$(echo $CHOICE2 | awk -F '=' '{print $2}')?autoplay=1"
-        echo $CHOICE2 >> $PLAYLISTFILEbkp
-        grep -v "$CHOICE2" "$PLAYLISTFILE" > /tmp/tmpbkp
-        [[ -n $(cat /tmp/tmpbkp) ]] && mv -f /tmp/tmpbkp $PLAYLISTFILE
+        # TODO: Implement non youtube link viewer
+        if [[ "$CHOICE2" =~ youtube.com ]]; then
+            minilinkhandler "https://youtube.com/embed/$(
+                echo "$CHOICE2" |
+                    awk -F '=' '{print $2}'
+            )?autoplay=1"
+        elif [[ "$CHOICE2" =~ youtu.be ]]; then
+            minilinkhandler "https://youtube.com/embed/$(
+                echo "$CHOICE2" |
+                    awk -F '/' '{print $NF}'
+            )?autoplay=1"
+        else
+            minilinkhandler "$CHOICE2"
+        fi
+        echo "$CHOICE2" >>$PLAYLISTFILEbkp
+        grep -v "$CHOICE2" "$PLAYLISTFILE" >/tmp/tmpbkp
+        #[[ -n $(cat /tmp/tmpbkp) ]] && mv -f /tmp/tmpbkp $PLAYLISTFILE
+        mv -f /tmp/tmpbkp $PLAYLISTFILE
         # if tmpbkp is not empty moves it to PLAYLISTFILE
     else
         pdlnmpv
-    fi   ;;
+    fi
+    ;;
 
-"send-to-playlist") 
-    send2notify -s "$CLIP" ;;
+"send-to-playlist")
+    send2notify -s "$CLIP"
+    ;;
 
-"edit-playlist-file") 
+"edit-playlist-file")
     # Needs a conditional because vim doesn't care if the file exits or not
     if [[ -s ${PLAYLISTFILE} ]]; then
         alacritty -e nvim ${PLAYLISTFILE}
     else
         notify-send 'Playlist file is empty'
-    fi 
+    fi
 
-    pdlnmpv ;;
+    pdlnmpv
+    ;;
 
 "get-playlist-bkp")
     if [[ -s $PLAYLISTFILEbkp ]]; then
@@ -102,39 +123,45 @@ case "$CHOICE" in
         TO_GET="$(cat $PLAYLISTFILEbkp | dmenu -i -l 10)"
         [[ -z $TO_GET ]] && exit
         # Saves it to the PLAYLISTFILE
-        echo "$TO_GET" >> $PLAYLISTFILE
+        echo "$TO_GET" >>$PLAYLISTFILE
         # Removes the line from the playlist-bkp
-        grep -v "$TO_GET" "$PLAYLISTFILEbkp" > /tmp/tmpbkp
+        grep -v "$TO_GET" "$PLAYLISTFILEbkp" >/tmp/tmpbkp
         mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
     #    tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
     #    notify-send 'Recovered Playlist'
     else
         notify-send 'Playlist Backup not found'
-    fi 
-    pdlnmpv ;;
+    fi
+    pdlnmpv
+    ;;
 
-"primary-to-clipboard") 
+"primary-to-clipboard")
     xclip -o | xclip -selection clipboard
-    notify-send 'Sent from Primary to Clipboard' ;;
+    notify-send 'Sent from Primary to Clipboard'
+    ;;
 
 "stop-ytb-or-clean")
-    stopYtbOrClear ;;
+    stopYtbOrClear
+    ;;
 
-"torrent") 
-    tadd "$CLIP" ;;
+"torrent")
+    tadd "$CLIP"
+    ;;
 
-"ytdl")  
-    ytbNotify "$CLIP" ;;
+"ytdl")
+    ytbNotify "$CLIP"
+    ;;
 
-"ytdl-mix") 
+"ytdl-mix")
     cd ~/Media/Videos/Mixes/jMIX || exit 1
-    ytbNotify "$CLIP" ;;
+    ytbNotify "$CLIP"
+    ;;
 
 esac
 
 # if the content of the clipboard wasn't a url and some of the option tried to
 # use it, send the error to notify-send
-if [[ "$?" == 1 && $CHOICE =~ (send-to-playlist|torrent) ]]; then 
+if [[ "$?" == 1 && $CHOICE =~ (send-to-playlist|torrent) ]]; then
     notify-send "Invalid or Not an URL" && exit 1
 fi
 
