@@ -27,9 +27,10 @@ case "$1" in
 *youtube.com/watch* | *youtube.com/playlist* | *youtu.be* | \
     *youtube.com/shorts* | *ytb.trom.tf* | *hooktube.com* | \
     *odisee.com* | *yewtu.be* | *videos* | *mkv | *webm | *mp4)
-    mpv --quiet \
-        --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
-        "$1" >/dev/null 2>&1
+    #mpv --quiet \
+    #    --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
+    #    "$1" >/dev/null 2>&1
+    minilinkhandler "$1"
     ;;
 
 *gif | *mp3 | *flac | *opus | *mp3?source*)
@@ -57,9 +58,7 @@ case "$1" in
 *instagram.com*)
     # Opens instagram links with my ungoogled-chromium logged session to
     # avoid the site nagging about login
-    chromium --class=surfium \
-        --user-data-dir="$HOME/.config/chromium-app" \
-        --new-window --app="$1" >/dev/null 2>&1
+    insta "$1"
     ;;
 
 *twitter.com* | *.t.co/* | */t.co/*)
@@ -72,7 +71,7 @@ case "$1" in
         exit
         ;;
     *t.co*)
-        twtr_url="$(curl -sIL $1 | sed -n 's/location: *//p')"
+        twtr_url="$(curl -sIL "$1" | sed -n 's/location: *//p')"
         ;;
     *)
         twtr_url="$1"
@@ -80,14 +79,14 @@ case "$1" in
     esac
     # Avoids twitter nagging about login by opening the link throught a
     # nitter instance that doesn't care about accounts
-    qutebrowser "$(echo "$twtr_url" | sed \
-        -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/')" \
-        >/dev/null 2>&1
-    ;;
-
     # Nitter is an opensource twitter frontend that has many instances
     # available online, so far 42l.fr was the best one I've found (but I
     # don't remember why)
+    chromium "$(
+        echo "$twtr_url" | sed -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/'
+    )" >/dev/null 2>&1
+    ;;
+
 *jupyter/runtime* | *127.0.0.1*)
     brave "$1" >/dev/null 2>&1
     ;;
