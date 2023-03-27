@@ -77,18 +77,8 @@ case "$CHOICE" in
     if [[ -n "$PLAYLIST_CHOICE" ]]; then
         # Opens with minilinkhandler as an embed page
         # TODO: Implement non youtube link viewer
-        CHOICE_URL="$(echo $PLAYLIST_CHOICE | awk '{print $NF}')"
-        if [[ "$CHOICE_URL" =~ youtube.com ]]; then
-            minilinkhandler "https://youtube.com/embed/$(
-                echo "$CHOICE_URL" | awk -F '=' '{print $2}'
-            )"
-        elif [[ "$CHOICE_URL" =~ youtu.be ]]; then
-            minilinkhandler "https://youtube.com/embed/$(
-                echo "$CHOICE_URL" | awk -F '/' '{print $NF}'
-            )"
-        else
-            minilinkhandler "$CHOICE_URL"
-        fi
+        CHOICE_URL="$(echo "$PLAYLIST_CHOICE" | awk '{print $NF}')"
+        minilinkhandler -e "$CHOICE_URL"
         echo "$PLAYLIST_CHOICE" >>$PLAYLISTFILEbkp
         grep -v "$CHOICE_URL" "$PLAYLISTFILE" >/tmp/tmpbkp
         mv -f /tmp/tmpbkp $PLAYLISTFILE

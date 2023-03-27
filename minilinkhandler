@@ -2,13 +2,30 @@
 # If the first argument is an youtube url, converts it to yewtu.be and opens it
 # with qutebrowser
 
-URL=$1
+call_chromium() {
+    chromium --user-data-dir="$HOME"/.config/chromium-app --class=Any \
+        --new-window --enable-features=WebUIDarkMode --force-dark-mode \
+        --incognito --app="$1"
+}
+
+case "$1" in
+-e)
+    # Tries to open youtube urls on a full window embed page
+    if [[ "$2" =~ youtube.com ]]; then
+        URL="https://youtube.com/embed/$(echo "$2" | awk -F '=' '{print $NF}')"
+    elif [[ "$2" =~ youtu.be ]]; then
+        URL="https://youtube.com/embed/$(echo "$2" | awk -F '/' '{print $NF}')"
+    else
+        URL="$2"
+    fi
+    ;;
+*)
+    URL="$1"
+    ;;
+esac
+
+call_chromium "$URL"
 
 #if [[ $URL =~ youtu ]]; then
 #    URL="https://yewtu.be/${URL##*/}"
 #fi
-
-#qutebrowser $URL
-chromium --user-data-dir=$HOME/.config/chromium-app  --class=Any \
-    --new-window --enable-features=WebUIDarkMode --force-dark-mode \
-    --incognito --app=$URL
