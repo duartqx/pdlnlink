@@ -20,10 +20,12 @@ ytdl
 ytdl-mix'
 # The options on the initial dmenu prompt
 
-CHOICE=$(echo "$DM_OPTIONS" | dmenu -i)
+CHOICE=$(dmenu -i <<<"$DM_OPTIONS")
 # If no DM_OPTIONS/CHOICE was selected, exits
 [[ -z $CHOICE ]] && exit
-CLIP=$(xclip -selection clipboard -o 2>/dev/null) # The clipboard content
+
+# The clipboard content
+CLIP=$(xclip -selection clipboard -o 2>/dev/null)
 
 getPlaylistLine() {
     # shellcheck disable=SC2317
@@ -44,17 +46,18 @@ ytbNotify() {
         send2notify -p
 }
 
+exec_mpv() {
+    xterm -g -1+0 -class XTerm-float -e mpv "$1" --fs
+}
+
 case "$CHOICE" in
 
 "full-playlist")
     if [[ -f $PLAYLISTFILE ]]; then
         # if playlist exists and is not empty
-        PLAYLIST_LIST=$(
-            cat $PLAYLISTFILE |
-                awk '{print $NF}' |
-                awk -F '=' '{gsub("$", ",", $2); printf $2}'
-        )
-        minilinkhandler "https://youtube.com/embed/?playlist=$PLAYLIST_LIST"
+        PLAYLIST_LIST="$(awk '{print $NF}' <$PLAYLISTFILE)"
+        # shellcheck disable=SC2086
+        exec_mpv $PLAYLIST_LIST
         cat $PLAYLISTFILE >>$PLAYLISTFILEbkp
         rm $PLAYLISTFILE
     else
@@ -69,19 +72,16 @@ case "$CHOICE" in
 
     if [[ -n $F_PLAYLIST ]]; then
         # If the playlist file has anything in it
-        PLAYLIST_CHOICE="$(echo "$F_PLAYLIST" | dmenu -i -l "$_LC")"
+        PLAYLIST_CHOICE="$(dmenu -i -l "$_LC" <<<"$F_PLAYLIST")"
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
     fi
 
     if [[ -n "$PLAYLIST_CHOICE" ]]; then
-        # Opens with minilinkhandler as an embed page
-        # TODO: Implement non youtube link viewer
-        CHOICE_URL="$(echo "$PLAYLIST_CHOICE" | awk '{print $NF}')"
-        minilinkhandler -e "$CHOICE_URL"
+        CHOICE_URL="$(awk '{print $NF}' <<<"$PLAYLIST_CHOICE")"
+        exec_mpv "$CHOICE_URL"
         echo "$PLAYLIST_CHOICE" >>$PLAYLISTFILEbkp
-        grep -v "$CHOICE_URL" "$PLAYLISTFILE" >/tmp/tmpbkp
-        mv -f /tmp/tmpbkp $PLAYLISTFILE
+        sed -i "/$(sed -e 's/\//\\\//g' <<<"$CHOICE_URL")/d" $PLAYLISTFILE
     else
         pdlnmpv
     fi
@@ -93,8 +93,8 @@ case "$CHOICE" in
 
 "edit-playlist-file")
     # Needs a conditional because vim doesn't care if the file exits or not
-    if [[ -s ${PLAYLISTFILE} ]]; then
-        alacritty -e nvim ${PLAYLISTFILE}
+    if [[ -s $PLAYLISTFILE ]]; then
+        $TERMINAL -e nvim $PLAYLISTFILE
     else
         notify-send 'Playlist file is empty'
     fi
@@ -105,15 +105,12 @@ case "$CHOICE" in
 "get-playlist-bkp")
     if [[ -s $PLAYLISTFILEbkp ]]; then
         # Gets the backup line
-        TO_GET="$(cat $PLAYLISTFILEbkp | dmenu -i -l 10)"
+        TO_GET="$(dmenu -i -l 10 <<<$PLAYLISTFILEbkp)"
         [[ -z $TO_GET ]] && exit
         # Saves it to the PLAYLISTFILE
         echo "$TO_GET" >>$PLAYLISTFILE
         # Removes the line from the playlist-bkp
-        grep -v "$TO_GET" "$PLAYLISTFILEbkp" >/tmp/tmpbkp
-        mv -f /tmp/tmpbkp $PLAYLISTFILEbkp
-    #    tail -n 10 $PLAYLISTFILEbkp >> $PLAYLISTFILE
-    #    notify-send 'Recovered Playlist'
+        sed -i "/$(sed -e 's/\//\\\//g' <<<"$TO_GET")/d" $PLAYLISTFILEbkp
     else
         notify-send 'Playlist Backup not found'
     fi
