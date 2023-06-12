@@ -47,7 +47,7 @@ ytbNotify() {
 }
 
 exec_mpv() {
-    xterm -g -1+0 -class XTerm-float -e mpv "$1" --fs
+    xterm -g -1+0 -class XTerm-float -e mpv "${YTDLQLTY:1:-1}" "$1" --fs
 }
 
 case "$CHOICE" in
@@ -66,13 +66,9 @@ case "$CHOICE" in
     ;;
 
 "check-playlist")
-    F_PLAYLIST="$(cat ${PLAYLISTFILE} 2>/dev/null)"
-    _LC=$(wc -l <"$PLAYLISTFILE")
-    # _LC returns the number of lines of the playlist file
-
-    if [[ -n $F_PLAYLIST ]]; then
+    if [[ -s $PLAYLISTFILE ]]; then
         # If the playlist file has anything in it
-        PLAYLIST_CHOICE="$(dmenu -i -l "$_LC" <<<"$F_PLAYLIST")"
+        PLAYLIST_CHOICE="$(dmenu -i -l 10 <"$PLAYLISTFILE")"
     else
         notify-send 'Stream and Local Playlists Empty' && exit 1
     fi
@@ -105,7 +101,7 @@ case "$CHOICE" in
 "get-playlist-bkp")
     if [[ -s $PLAYLISTFILEbkp ]]; then
         # Gets the backup line
-        TO_GET="$(dmenu -i -l 10 <<<$PLAYLISTFILEbkp)"
+        TO_GET="$(dmenu -i -l 10 <$PLAYLISTFILEbkp)"
         [[ -z $TO_GET ]] && exit
         # Saves it to the PLAYLISTFILE
         echo "$TO_GET" >>$PLAYLISTFILE
