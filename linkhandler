@@ -27,10 +27,10 @@ case "$1" in
 *youtube.com/watch* | *youtube.com/playlist* | *youtu.be* | \
     *youtube.com/shorts* | *ytb.trom.tf* | *hooktube.com* | \
     *odisee.com* | *yewtu.be* | *videos* | *mkv | *webm | *mp4)
-    #mpv --quiet \
-    #    --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
-    #    "$1" >/dev/null 2>&1
-    minilinkhandler -e "$1"
+    #minilinkhandler -e "$1"
+    xterm -g -1+0 -class XTerm-float -e mpv \
+        --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
+        "$1"
     ;;
 
 *gif | *mp3 | *flac | *opus | *mp3?source*)
