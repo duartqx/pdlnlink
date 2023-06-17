@@ -34,11 +34,6 @@ getPlaylistLine() {
         awk '{print $NF}'
 }
 
-stopYtbOrClear() {
-    killall yt-dlp
-    rm $PLAYLISTFLDR/{*.part*,*.f251.*,*.f303.*,*.ytdl}
-}
-
 ytbNotify() {
     youtube-dl -f "${YTDLQLTY:15:-1}" "--${YTDLCONC:19}" \
         --match-filter !is_live --add-chapters \
@@ -47,7 +42,7 @@ ytbNotify() {
 }
 
 exec_mpv() {
-    xterm -g -1+0 -class XTerm-float -e mpv "${YTDLQLTY:1:-1}" "$1" --fs
+    xterm -g -1+0 -class XTerm-float -e mpv "${YTDLQLTY:1:-1}" "$@" --fs
 }
 
 case "$CHOICE" in
@@ -55,7 +50,7 @@ case "$CHOICE" in
 "full-playlist")
     if [[ -f $PLAYLISTFILE ]]; then
         # if playlist exists and is not empty
-        PLAYLIST_LIST="$(awk '{print $NF}' <$PLAYLISTFILE)"
+        PLAYLIST_LIST="$(awk '{printf "%s ", $NF}' <$PLAYLISTFILE)"
         # shellcheck disable=SC2086
         exec_mpv $PLAYLIST_LIST
         cat $PLAYLISTFILE >>$PLAYLISTFILEbkp
@@ -119,7 +114,8 @@ case "$CHOICE" in
     ;;
 
 "stop-ytb-or-clean")
-    stopYtbOrClear
+    killall yt-dlp
+    rm $PLAYLISTFLDR/{*.part*,*.f251.*,*.f303.*,*.ytdl}
     ;;
 
 "torrent")
