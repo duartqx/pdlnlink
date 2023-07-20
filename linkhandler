@@ -28,7 +28,7 @@ case "$1" in
     *youtube.com/shorts* | *ytb.trom.tf* | *hooktube.com* | \
     *odisee.com* | *yewtu.be* | *videos* | *mkv | *webm | *mp4)
     #minilinkhandler -e "$1"
-    xterm -g -1+0 -class XTerm-float -e mpv \
+    xterm -g 76x5-1-1 -class XTerm-float -e mpv \
         --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
         "$1"
     ;;
@@ -61,32 +61,32 @@ case "$1" in
     insta "$1"
     ;;
 
-*twitter.com* | *.t.co/* | */t.co/*)
-    case "$1" in
-    # Forces t.co shortened url to be expanded, so that I can take the
-    # ending part of the url and substitute the beginning with a nitter
-    # instance url
-    *video*)
-        mpv --loop "$1" &
-        exit
-        ;;
-    *t.co*)
-        twtr_url="$(curl -sIL "$1" | sed -n 's/location: *//p')"
-        ;;
-    *)
-        twtr_url="$1"
-        ;;
-    esac
-    # Avoids twitter nagging about login by opening the link throught a
-    # nitter instance that doesn't care about accounts
-    # Nitter is an opensource twitter frontend that has many instances
-    # available online, so far 42l.fr was the best one I've found (but I
-    # don't remember why)
-    chromium "$(
-        echo "$twtr_url" | sed -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/'
-    )" >/dev/null 2>&1
-    ;;
-
+#*twitter.com* | *.t.co/* | */t.co/*)
+#    case "$1" in
+#    # Forces t.co shortened url to be expanded, so that I can take the
+#    # ending part of the url and substitute the beginning with a nitter
+#    # instance url
+#    *video*)
+#        mpv --loop "$1" &
+#        exit
+#        ;;
+#    *t.co*)
+#        twtr_url="$(curl -sIL "$1" | sed -n 's/location: *//p')"
+#        ;;
+#    *)
+#        twtr_url="$1"
+#        ;;
+#    esac
+#    # Avoids twitter nagging about login by opening the link throught a
+#    # nitter instance that doesn't care about accounts
+#    # Nitter is an opensource twitter frontend that has many instances
+#    # available online, so far 42l.fr was the best one I've found (but I
+#    # don't remember why)
+#    chromium "$(
+#        echo "$twtr_url" | sed -E 's/mobile.twitter.com|twitter.com/nitter.42l.fr/'
+#    )" >/dev/null 2>&1
+#    ;;
+#
 *jupyter/runtime* | *127.0.0.1*)
     brave "$1" >/dev/null 2>&1
     ;;
