@@ -24,15 +24,15 @@ case "$1" in
 #    # forces this output to be opened in an user defined browser
 #    $TERMINAL -e rdrview -B "lynx -vikeys" "$1" 2>/dev/null ;;
 
-*youtube.com/watch* | *youtube.com/playlist* | *youtu.be* | \
-    *youtube.com/shorts* | *ytb.trom.tf* | *hooktube.com* | \
-    *odisee.com* | *yewtu.be* | *videos* | *mkv | *webm | *mp4)
-    #minilinkhandler -e "$1"
-    xterm -g 76x5-1-1 -class XTerm-float -e mpv \
-        --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
-        "$1"
-    ;;
-
+# *youtube.com/watch* | *youtube.com/playlist* | *youtu.be* | \
+#     *youtube.com/shorts* | *ytb.trom.tf* | *hooktube.com* | \
+#     *odisee.com* | *yewtu.be* | *videos* | *mkv | *webm | *mp4)
+#     #minilinkhandler -e "$1"
+#     xterm -g 76x5-1-1 -class XTerm-float -e mpv \
+#         --ytdl-format="bestvideo[height<=1080]+bestaudio/best[height<=1080]" \
+#         "$1"
+#     ;;
+#
 *gif | *mp3 | *flac | *opus | *mp3?source*)
     mpv --quiet "$1" >/dev/null 2>&1
     ;;
