@@ -57,7 +57,7 @@ case "$CHOICE" in
         cat $PLAYLISTFILE >>$PLAYLISTFILEbkp
         rm $PLAYLISTFILE
     else
-        notify-send "Local playlist is probably Empty" && exit 1
+        send2notify "Local playlist is probably Empty" && exit 1
     fi
     ;;
 
@@ -66,7 +66,7 @@ case "$CHOICE" in
         # If the playlist file has anything in it
         PLAYLIST_CHOICE="$(dmenu -i -l 10 <"$PLAYLISTFILE")"
     else
-        notify-send 'Stream and Local Playlists Empty' && exit 1
+        send2notify 'Stream and Local Playlists Empty' && exit 1
     fi
 
     if [[ -n "$PLAYLIST_CHOICE" ]]; then
@@ -88,7 +88,7 @@ case "$CHOICE" in
     if [[ -s $PLAYLISTFILE ]]; then
         $TERMINAL -e nvim $PLAYLISTFILE
     else
-        notify-send 'Playlist file is empty'
+        send2notify 'Playlist file is empty'
     fi
 
     pdlnmpv
@@ -104,14 +104,14 @@ case "$CHOICE" in
         # Removes the line from the playlist-bkp
         sed -i "/$(sed -e 's/\//\\\//g' <<<"$TO_GET")/d" $PLAYLISTFILEbkp
     else
-        notify-send 'Playlist Backup not found'
+        send2notify 'Playlist Backup not found'
     fi
     pdlnmpv
     ;;
 
 "primary-to-clipboard")
     xclip -o | xclip -selection clipboard
-    notify-send 'Sent from Primary to Clipboard'
+    send2notify 'Sent from Primary to Clipboard'
     ;;
 
 "stop-ytb-or-clean")
@@ -137,7 +137,7 @@ esac
 # if the content of the clipboard wasn't a url and some of the option tried to
 # use it, send the error to notify-send
 if [[ "$?" == 1 && $CHOICE =~ (send-to-playlist|torrent) ]]; then
-    notify-send "Invalid or Not an URL" && exit 1
+    send2notify "Invalid or Not an URL" && exit 1
 fi
 
 exit
