@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+
+from abc import ABC, abstractmethod
+from argparse import ArgumentParser, Namespace
+from pathlib import Path
+from typing import Any, Generator, Optional, Protocol, Self
+
+import subprocess
+
+
+class Mpv(ABC):
+    @staticmethod
+    @abstractmethod
+    def command() -> list[str]:
+        raise NotImplementedError()
+
+    def play(self, files: list[str]) -> None:
+        subprocess.run(" ".join(self.command() + files), shell=True)
+
+
+class MpvOSC(Mpv):
+    @staticmethod
+    def command() -> list[str]:
+        return [
+            "mpv",
+            "--player-operation-mode=pseudo-gui",
+            "--shuffle",
+            "--loop-playlist",
+            "--x11-name=jmix",
+        ]
+
+
+class MpvHeadless(Mpv):
+    @staticmethod
+    def command() -> list[str]:
+        return [
+            "xterm",
+            "-e",
+            "mpv",
+            "--vid=no",
+            "--shuffle",
+            "--loop-playlist",
+            "--x11-name=jmix",
+        ]
+
+
+class Picker(Protocol):
+    def choose(self, options: list[str]) -> str:
+        raise NotImplementedError()
+
+
+class Dmenu:
+    def choose(self, options: list[str]) -> str:
+        process = subprocess.Popen(
+            ("dmenu", "-i"),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
+
+        output, _ = process.communicate(input="\n".join(options).rstrip("\n").encode())
+
+        return output.decode().rstrip("\n")
+
+
+class Mixes:
+    def __init__(
+        self,
+        root: Path = Path().home() / "Media/Videos/Mixes",
+        picker: Picker = Dmenu(),
+    ) -> None:
+        self.root: Path = root
+        self.picker = picker
+        self.paths: dict[str, Path] = self.__get_children()
+        self.choice: Optional[Path] = None
+
+    def choose(self) -> Self:
+        choice: str = self.picker.choose([p.name for p in self.paths.values()])
+
+        if choice:
+            self.choice = self.paths[choice]
+
+        return self
+
+    def glob(self) -> list[str]:
+        if self.choice is None:
+            raise ValueError("You need to choose first")
+
+        globbed = self.choice.glob("*")
+
+        def is_video(p: Path):
+            return p.is_file() and p.name.split(".")[-1] in [
+                "mp4",
+                "webm",
+                "mkv",
+                "cue",
+                "flac",
+            ]
+
+        return [f'"{str(p)}"' for p in filter(is_video, globbed)]
+
+    def __get_children(self) -> dict[str, Path]:
+        globbed: Generator[Path, Any, Any] = self.root.glob("*/")
+        return {p.name: p for p in globbed if p.is_dir()}
+
+
+def get_args() -> Namespace:
+    parser = ArgumentParser(prog="Mixes")
+    parser.add_argument("-d", "--headless", action="store_true")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+
+    args: Namespace = get_args()
+
+    mpv: Mpv = MpvOSC() if not args.headless else MpvHeadless()
+
+    files: list[str] = Mixes().choose().glob()
+
+    mpv.play(files)
