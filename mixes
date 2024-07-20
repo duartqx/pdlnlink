@@ -3,12 +3,12 @@
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Generator, Optional, Protocol, Self
+from typing import Any, Generator, Optional, Self
 
 import subprocess
 
 
-class Mpv(ABC):
+class Player(ABC):
     @staticmethod
     @abstractmethod
     def command() -> list[str]:
@@ -18,7 +18,7 @@ class Mpv(ABC):
         subprocess.run(" ".join(self.command() + files), shell=True)
 
 
-class MpvOSC(Mpv):
+class Mpv(Player):
     @staticmethod
     def command() -> list[str]:
         return [
@@ -30,7 +30,7 @@ class MpvOSC(Mpv):
         ]
 
 
-class MpvHeadless(Mpv):
+class MpvHeadless(Player):
     @staticmethod
     def command() -> list[str]:
         return [
@@ -44,12 +44,13 @@ class MpvHeadless(Mpv):
         ]
 
 
-class Picker(Protocol):
+class Picker(ABC):
+    @abstractmethod
     def choose(self, options: list[str]) -> str:
         raise NotImplementedError()
 
 
-class Dmenu:
+class Dmenu(Picker):
     def choose(self, options: list[str]) -> str:
         process = subprocess.Popen(
             ("dmenu", "-i"),
@@ -113,7 +114,7 @@ if __name__ == "__main__":
 
     args: Namespace = get_args()
 
-    mpv: Mpv = MpvOSC() if not args.headless else MpvHeadless()
+    mpv: Player = Mpv() if not args.headless else MpvHeadless()
 
     files: list[str] = Mixes().choose().glob()
 
